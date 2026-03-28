@@ -1,15 +1,18 @@
 import asyncio
 import base64
 import json
+import os
 import platform
 import queue
 import secrets
+import stat
 import shutil
 import subprocess
 import sys
 import threading
 import time
 import tkinter as tk
+import tkinter.font as tkfont
 import urllib.request
 from pathlib import Path
 from tkinter import messagebox, scrolledtext
@@ -285,35 +288,73 @@ class RemoteAgent:
                 self.websocket = None
 
 
-loop = asyncio.get_event_loop()
-loop.create_task(start_embedded_ssh_server())
-loop.create_task(RemoteAgent(CONTROL_URL, CONTROL_TOKEN).run())
-print("Remote notebook agent started. Leave this cell running.")
-print("If the cell finishes, rerun it to restart the background tasks.")
+async def main():
+    await start_embedded_ssh_server()
+    print("Remote notebook agent started. Leave this cell running.")
+    await RemoteAgent(CONTROL_URL, CONTROL_TOKEN).run()
+
+
+asyncio.get_event_loop().run_until_complete(main())
 '''
 
 
 def find_cloudflared() -> Path | None:
-    candidates = [
-        shutil.which("cloudflared"),
-        str(BIN_DIR / "cloudflared.exe"),
-        str(BIN_DIR / "cloudflared"),
-    ]
+    system = platform.system().lower()
+    if system == "windows":
+        candidates = [
+            str(BIN_DIR / "cloudflared.exe"),
+            shutil.which("cloudflared"),
+            str(BIN_DIR / "cloudflared"),
+        ]
+    else:
+        candidates = [
+            str(BIN_DIR / "cloudflared"),
+            shutil.which("cloudflared"),
+            str(BIN_DIR / "cloudflared.exe"),
+        ]
     for candidate in candidates:
         if candidate and Path(candidate).exists():
             return Path(candidate)
     return None
 
 
+def get_cloudflared_download_info() -> tuple[str, Path]:
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+
+    if system == "windows":
+        filename = "cloudflared-windows-arm64.exe" if "arm" in machine else "cloudflared-windows-amd64.exe"
+        target = BIN_DIR / "cloudflared.exe"
+    elif system == "linux":
+        if any(token in machine for token in ("aarch64", "arm64")):
+            filename = "cloudflared-linux-arm64"
+        else:
+            filename = "cloudflared-linux-amd64"
+        target = BIN_DIR / "cloudflared"
+    elif system == "darwin":
+        if any(token in machine for token in ("arm64", "aarch64")):
+            filename = "cloudflared-darwin-arm64.tgz"
+        else:
+            filename = "cloudflared-darwin-amd64.tgz"
+        raise RuntimeError(
+            "Automatic cloudflared download is currently implemented for Windows and Linux. "
+            f"Please install cloudflared manually for macOS and set its path in the app. Suggested asset: {filename}"
+        )
+    else:
+        raise RuntimeError(f"Unsupported operating system for automatic cloudflared download: {platform.system()}")
+
+    url = f"https://github.com/cloudflare/cloudflared/releases/latest/download/{filename}"
+    return url, target
+
+
 def download_cloudflared(log_callback):
     BIN_DIR.mkdir(parents=True, exist_ok=True)
-    machine = platform.machine().lower()
-    filename = "cloudflared-windows-arm64.exe" if "arm" in machine else "cloudflared-windows-amd64.exe"
-    url = f"https://github.com/cloudflare/cloudflared/releases/latest/download/{filename}"
-    target = BIN_DIR / "cloudflared.exe"
+    url, target = get_cloudflared_download_info()
     log_callback(f"Downloading cloudflared from {url}")
     with urllib.request.urlopen(url) as response, open(target, "wb") as output:
         output.write(response.read())
+    if platform.system().lower() != "windows":
+        target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     return target
 
 
@@ -656,8 +697,10 @@ Suggested first command:
 class KaggleTunnelWindow:
     def __init__(self):
         self.root = tk.Tk()
+        self.ui_scale = self.configure_display_scaling()
         self.root.title("Kaggle Tunnel Controller")
-        self.root.geometry("980x760")
+        self.root.geometry(f"{int(980 * self.ui_scale)}x{int(760 * self.ui_scale)}")
+        self.root.minsize(int(900 * self.ui_scale), int(700 * self.ui_scale))
 
         self.log_queue = queue.Queue()
         self.runtime = TunnelRuntime(self.enqueue_log, self.on_runtime_state)
@@ -669,6 +712,64 @@ class KaggleTunnelWindow:
         self.build_ui()
         self.root.after(200, self.flush_logs)
         self.root.protocol("WM_DELETE_WINDOW", self.on_destroy)
+
+    def configure_display_scaling(self) -> float:
+        scale_override = os.environ.get("KAGGLE_TUNNEL_UI_SCALE", "").strip()
+        if scale_override:
+            try:
+                ui_scale = max(1.0, float(scale_override))
+            except ValueError:
+                ui_scale = 1.0
+        elif sys.platform.startswith("linux"):
+            ui_scale = self._detect_linux_ui_scale()
+        else:
+            ui_scale = 1.0
+
+        if ui_scale > 1.0:
+            try:
+                current = float(self.root.tk.call("tk", "scaling"))
+                self.root.tk.call("tk", "scaling", max(current, current * ui_scale))
+            except Exception:
+                pass
+            self._scale_default_fonts(ui_scale)
+        return ui_scale
+
+    def _detect_linux_ui_scale(self) -> float:
+        try:
+            screen_width_px = self.root.winfo_screenwidth()
+            screen_width_mm = self.root.winfo_screenmmwidth()
+            if screen_width_px > 0 and screen_width_mm > 0:
+                dpi = screen_width_px / (screen_width_mm / 25.4)
+                if dpi >= 170:
+                    return 1.6
+                if dpi >= 140:
+                    return 1.4
+                if dpi >= 115:
+                    return 1.2
+        except Exception:
+            pass
+        return 1.25
+
+    def _scale_default_fonts(self, ui_scale: float):
+        for font_name in (
+            "TkDefaultFont",
+            "TkTextFont",
+            "TkMenuFont",
+            "TkHeadingFont",
+            "TkCaptionFont",
+            "TkSmallCaptionFont",
+            "TkIconFont",
+            "TkTooltipFont",
+        ):
+            try:
+                font = tkfont.nametofont(font_name)
+            except tk.TclError:
+                continue
+            size = font.cget("size")
+            if not isinstance(size, int) or size == 0:
+                continue
+            scaled_size = max(10, int(round(abs(size) * ui_scale)))
+            font.configure(size=-scaled_size if size < 0 else scaled_size)
 
     def build_ui(self):
         outer = tk.Frame(self.root, padx=12, pady=12)

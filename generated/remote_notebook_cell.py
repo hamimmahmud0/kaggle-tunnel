@@ -230,7 +230,10 @@ class RemoteAgent:
                 self.websocket = None
 
 
+async def main():
+    print("Remote notebook agent started. Leave this cell running.")
+    await agent.run()
+
+
 agent = RemoteAgent(CONTROL_URL, CONTROL_TOKEN)
-asyncio.get_event_loop().create_task(agent.run())
-print("Remote notebook agent started. Leave this cell running.")
-print("If the cell finishes, rerun it to restart the background tasks.")
+asyncio.get_event_loop().run_until_complete(main())

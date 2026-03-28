@@ -1,6 +1,6 @@
 # Kaggle Tunnel
 
-This project builds a Windows desktop controller that:
+This project builds a desktop controller that works on Windows and Ubuntu/Linux:
 
 - starts a local control server on the PC
 - exposes that server with `cloudflared`
@@ -11,16 +11,50 @@ This project builds a Windows desktop controller that:
 ## Install
 
 1. Install Python 3.11+.
-2. Install Python dependencies:
+2. Install the GUI/system packages your OS needs.
 
-```powershell
+Ubuntu/Debian:
+
+```bash
+sudo apt update
+sudo apt install -y python3-tk openssh-client
+```
+
+Windows:
+
+- Install OpenSSH Client if `ssh` is not already available in PowerShell.
+
+3. Install Python dependencies:
+
+```bash
 python -m pip install -r requirements.txt
 ```
 
+This repo also includes VS Code workspace settings that point the Python extension at the `kaggle-tunnel` conda environment:
+
+- Interpreter: `/home/hamim-mahmud/miniconda3/envs/kaggle-tunnel/bin/python`
+- Conda executable: `/home/hamim-mahmud/miniconda3/bin/conda`
+
+If the Python extension is enabled, new integrated terminals should auto-activate that environment for this workspace.
+
 ## Run
 
+Linux/macOS:
+
+```bash
+python app.py
+```
+
+If the UI appears too small on Ubuntu/Linux high-DPI displays, the app now scales itself up automatically. You can also force a custom scale factor:
+
+```bash
+KAGGLE_TUNNEL_UI_SCALE=1.5 python app.py
+```
+
+Windows PowerShell:
+
 ```powershell
-python .\kaggle_tunnel_app.py
+python .\app.py
 ```
 
 ## Run A Local Script On Kaggle
@@ -28,6 +62,16 @@ python .\kaggle_tunnel_app.py
 After the tunnel is up, the notebook cell is running, and the local proxy has been started, you can upload a local Python file to the notebook and execute it over SSH with `run.py`.
 
 Examples:
+
+Linux/macOS:
+
+```bash
+python run.py ./your_script.py
+python run.py ./your_script.py -- arg1 arg2
+python run.py ./your_script.py --password "YOUR_SHARED_TOKEN"
+```
+
+Windows PowerShell:
 
 ```powershell
 python .\run.py .\your_script.py
@@ -44,8 +88,8 @@ Defaults used by `run.py`:
 
 You can also override them if needed:
 
-```powershell
-python .\run.py .\your_script.py --host 127.0.0.1 --port 10022 --user notebook --remote-dir /kaggle/working
+```bash
+python run.py ./your_script.py --host 127.0.0.1 --port 10022 --user notebook --remote-dir /kaggle/working
 ```
 
 ## Basic flow
@@ -55,9 +99,9 @@ python .\run.py .\your_script.py --host 127.0.0.1 --port 10022 --user notebook -
 3. Click `Copy Cell Code`.
 4. Run the generated code on the remote notebook machine.
 5. Start the local proxy.
-6. SSH from the PC with `ssh -p 10022 notebook@127.0.0.1` and use the Shared token as the password.
+6. SSH from your machine with `ssh -p 10022 notebook@127.0.0.1` and use the Shared token as the password.
 7. If needed, click `Copy Agent Prompt` to copy an LLM-ready instruction block for connecting to this execution server.
-8. Run `python .\run.py .\your_script.py` to upload and execute a local Python script on the notebook.
+8. Run `python run.py ./your_script.py` to upload and execute a local Python script on the notebook.
 
 ## Important note
 
@@ -65,8 +109,15 @@ The generated notebook helper is a long-running control agent. Keep that cell ru
 
 The embedded SSH server now reuses a host key saved at `/kaggle/working/.kaggle_tunnel/ssh_host_key`, which helps avoid repeated host key warnings across notebook restarts in the same Kaggle workspace.
 
-If you already connected before this change and see `REMOTE HOST IDENTIFICATION HAS CHANGED!` on Windows, remove the stale entry once with:
+If you already connected before this change and see `REMOTE HOST IDENTIFICATION HAS CHANGED!`, remove the stale entry once with:
 
-```powershell
+```bash
 ssh-keygen -R "[127.0.0.1]:10022"
 ```
+
+## cloudflared notes
+
+- The app can now auto-download `cloudflared` on Windows and Linux.
+- On Ubuntu, the downloaded binary is saved as `bin/cloudflared`.
+- On Windows, the downloaded binary is saved as `bin/cloudflared.exe`.
+- If you already installed `cloudflared` globally, the app should detect it from `PATH`.
