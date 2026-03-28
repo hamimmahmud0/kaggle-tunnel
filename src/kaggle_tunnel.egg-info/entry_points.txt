@@ -1,0 +1,3 @@
+[console_scripts]
+kaggle-tunnel = kaggle_tunnel.app:main
+kaggle-tunnel-run = kaggle_tunnel.run:main

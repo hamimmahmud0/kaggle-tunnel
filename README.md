@@ -24,10 +24,16 @@ Windows:
 
 - Install OpenSSH Client if `ssh` is not already available in PowerShell.
 
-3. Install Python dependencies:
+3. Install the package:
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install .
+```
+
+For editable local development, you can use:
+
+```bash
+python -m pip install -e .
 ```
 
 This repo also includes VS Code workspace settings that point the Python extension at the `kaggle-tunnel` conda environment:
@@ -42,44 +48,44 @@ If the Python extension is enabled, new integrated terminals should auto-activat
 Linux/macOS:
 
 ```bash
-python app.py
+kaggle-tunnel
 ```
 
 If the UI appears too small on Ubuntu/Linux high-DPI displays, the app now scales itself up automatically. You can also force a custom scale factor:
 
 ```bash
-KAGGLE_TUNNEL_UI_SCALE=1.5 python app.py
+KAGGLE_TUNNEL_UI_SCALE=2 kaggle-tunnel
 ```
 
 Windows PowerShell:
 
 ```powershell
-python .\app.py
+kaggle-tunnel
 ```
 
 ## Run A Local Script On Kaggle
 
-After the tunnel is up, the notebook cell is running, and the local proxy has been started, you can upload a local Python file to the notebook and execute it over SSH with `run.py`.
+After the tunnel is up, the notebook cell is running, and the local proxy has been started, you can upload a local Python file to the notebook and execute it over SSH with `kaggle-tunnel-run`.
 
 Examples:
 
 Linux/macOS:
 
 ```bash
-python run.py ./your_script.py
-python run.py ./your_script.py -- arg1 arg2
-python run.py ./your_script.py --password "YOUR_SHARED_TOKEN"
+kaggle-tunnel-run ./your_script.py
+kaggle-tunnel-run ./your_script.py -- arg1 arg2
+kaggle-tunnel-run ./your_script.py --password "YOUR_SHARED_TOKEN"
 ```
 
 Windows PowerShell:
 
 ```powershell
-python .\run.py .\your_script.py
-python .\run.py .\your_script.py -- arg1 arg2
-python .\run.py .\your_script.py --password "YOUR_SHARED_TOKEN"
+kaggle-tunnel-run .\your_script.py
+kaggle-tunnel-run .\your_script.py -- arg1 arg2
+kaggle-tunnel-run .\your_script.py --password "YOUR_SHARED_TOKEN"
 ```
 
-Defaults used by `run.py`:
+Defaults used by `kaggle-tunnel-run`:
 
 - SSH host: `127.0.0.1`
 - SSH port: `10022`
@@ -89,7 +95,7 @@ Defaults used by `run.py`:
 You can also override them if needed:
 
 ```bash
-python run.py ./your_script.py --host 127.0.0.1 --port 10022 --user notebook --remote-dir /kaggle/working
+kaggle-tunnel-run ./your_script.py --host 127.0.0.1 --port 10022 --user notebook --remote-dir /kaggle/working
 ```
 
 ## Basic flow
@@ -101,7 +107,7 @@ python run.py ./your_script.py --host 127.0.0.1 --port 10022 --user notebook --r
 5. Start the local proxy.
 6. SSH from your machine with `ssh -p 10022 notebook@127.0.0.1` and use the Shared token as the password.
 7. If needed, click `Copy Agent Prompt` to copy an LLM-ready instruction block for connecting to this execution server.
-8. Run `python run.py ./your_script.py` to upload and execute a local Python script on the notebook.
+8. Run `kaggle-tunnel-run ./your_script.py` to upload and execute a local Python script on the notebook.
 
 ## Important note
 
@@ -118,6 +124,6 @@ ssh-keygen -R "[127.0.0.1]:10022"
 ## cloudflared notes
 
 - The app can now auto-download `cloudflared` on Windows and Linux.
-- On Ubuntu, the downloaded binary is saved as `bin/cloudflared`.
-- On Windows, the downloaded binary is saved as `bin/cloudflared.exe`.
+- When installed as a package, downloaded binaries are saved in the user data directory for `kaggle-tunnel`.
+- Bundled fallback binaries are also included in the package for Windows and Linux.
 - If you already installed `cloudflared` globally, the app should detect it from `PATH`.

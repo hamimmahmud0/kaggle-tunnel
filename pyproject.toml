@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kaggle-tunnel"
+version = "0.1.0"
+description = "Desktop controller for connecting Kaggle notebooks back to a local machine"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "aiohttp>=3.10.0",
+]
+
+[project.scripts]
+kaggle-tunnel = "kaggle_tunnel.app:main"
+kaggle-tunnel-run = "kaggle_tunnel.run:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+kaggle_tunnel = ["bin/*"]

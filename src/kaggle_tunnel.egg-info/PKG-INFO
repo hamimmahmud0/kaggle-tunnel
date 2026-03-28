@@ -1,0 +1,137 @@
+Metadata-Version: 2.4
+Name: kaggle-tunnel
+Version: 0.1.0
+Summary: Desktop controller for connecting Kaggle notebooks back to a local machine
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: aiohttp>=3.10.0
+
+# Kaggle Tunnel
+
+This project builds a desktop controller that works on Windows and Ubuntu/Linux:
+
+- starts a local control server on the PC
+- exposes that server with `cloudflared`
+- copies notebook cell code with the live tunnel URL and token embedded
+- lets the notebook connect back to the PC over websocket
+- can forward TCP traffic through the notebook and expose a Python-based SSH server from the notebook
+
+## Install
+
+1. Install Python 3.11+.
+2. Install the GUI/system packages your OS needs.
+
+Ubuntu/Debian:
+
+```bash
+sudo apt update
+sudo apt install -y python3-tk openssh-client
+```
+
+Windows:
+
+- Install OpenSSH Client if `ssh` is not already available in PowerShell.
+
+3. Install the package:
+
+```bash
+python -m pip install .
+```
+
+For editable local development, you can use:
+
+```bash
+python -m pip install -e .
+```
+
+This repo also includes VS Code workspace settings that point the Python extension at the `kaggle-tunnel` conda environment:
+
+- Interpreter: `/home/hamim-mahmud/miniconda3/envs/kaggle-tunnel/bin/python`
+- Conda executable: `/home/hamim-mahmud/miniconda3/bin/conda`
+
+If the Python extension is enabled, new integrated terminals should auto-activate that environment for this workspace.
+
+## Run
+
+Linux/macOS:
+
+```bash
+kaggle-tunnel
+```
+
+If the UI appears too small on Ubuntu/Linux high-DPI displays, the app now scales itself up automatically. You can also force a custom scale factor:
+
+```bash
+KAGGLE_TUNNEL_UI_SCALE=1.5 kaggle-tunnel
+```
+
+Windows PowerShell:
+
+```powershell
+kaggle-tunnel
+```
+
+## Run A Local Script On Kaggle
+
+After the tunnel is up, the notebook cell is running, and the local proxy has been started, you can upload a local Python file to the notebook and execute it over SSH with `kaggle-tunnel-run`.
+
+Examples:
+
+Linux/macOS:
+
+```bash
+kaggle-tunnel-run ./your_script.py
+kaggle-tunnel-run ./your_script.py -- arg1 arg2
+kaggle-tunnel-run ./your_script.py --password "YOUR_SHARED_TOKEN"
+```
+
+Windows PowerShell:
+
+```powershell
+kaggle-tunnel-run .\your_script.py
+kaggle-tunnel-run .\your_script.py -- arg1 arg2
+kaggle-tunnel-run .\your_script.py --password "YOUR_SHARED_TOKEN"
+```
+
+Defaults used by `kaggle-tunnel-run`:
+
+- SSH host: `127.0.0.1`
+- SSH port: `10022`
+- SSH user: `notebook`
+- Remote upload directory: `/kaggle/working`
+
+You can also override them if needed:
+
+```bash
+kaggle-tunnel-run ./your_script.py --host 127.0.0.1 --port 10022 --user notebook --remote-dir /kaggle/working
+```
+
+## Basic flow
+
+1. Start the tunnel from the app.
+2. Wait for the `trycloudflare.com` URL to appear.
+3. Click `Copy Cell Code`.
+4. Run the generated code on the remote notebook machine.
+5. Start the local proxy.
+6. SSH from your machine with `ssh -p 10022 notebook@127.0.0.1` and use the Shared token as the password.
+7. If needed, click `Copy Agent Prompt` to copy an LLM-ready instruction block for connecting to this execution server.
+8. Run `kaggle-tunnel-run ./your_script.py` to upload and execute a local Python script on the notebook.
+
+## Important note
+
+The generated notebook helper is a long-running control agent. Keep that cell running while you use the desktop app.
+
+The embedded SSH server now reuses a host key saved at `/kaggle/working/.kaggle_tunnel/ssh_host_key`, which helps avoid repeated host key warnings across notebook restarts in the same Kaggle workspace.
+
+If you already connected before this change and see `REMOTE HOST IDENTIFICATION HAS CHANGED!`, remove the stale entry once with:
+
+```bash
+ssh-keygen -R "[127.0.0.1]:10022"
+```
+
+## cloudflared notes
+
+- The app can now auto-download `cloudflared` on Windows and Linux.
+- When installed as a package, downloaded binaries are saved in the user data directory for `kaggle-tunnel`.
+- Bundled fallback binaries are also included in the package for Windows and Linux.
+- If you already installed `cloudflared` globally, the app should detect it from `PATH`.
