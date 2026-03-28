@@ -938,7 +938,7 @@ class KaggleTunnelWindow:
     def show_error(self, message: str):
         messagebox.showerror("Operation failed", message, parent=self.root)
 
-    def on_install_cloudflared(self, _button):
+    def on_install_cloudflared(self, _button=None):
         def worker():
             try:
                 target = download_cloudflared(self.enqueue_log)

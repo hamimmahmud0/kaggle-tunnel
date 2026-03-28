@@ -62,7 +62,7 @@ kaggle-tunnel
 If the UI appears too small on Ubuntu/Linux high-DPI displays, the app now scales itself up automatically. You can also force a custom scale factor:
 
 ```bash
-KAGGLE_TUNNEL_UI_SCALE=1.5 kaggle-tunnel
+KAGGLE_TUNNEL_UI_SCALE=2 kaggle-tunnel
 ```
 
 Windows PowerShell:
