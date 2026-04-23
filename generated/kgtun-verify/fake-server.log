@@ -1,0 +1,57 @@
+fake-remote listening on 127.0.0.1:46263
+Exception (server): Error reading SSH protocol banner
+Traceback (most recent call last):
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/transport.py", line 2363, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/packet.py", line 395, in readline
+    buf += self._read_timeout(timeout)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/packet.py", line 665, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/transport.py", line 2179, in run
+    self._check_banner()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/transport.py", line 2367, in _check_banner
+    raise SSHException(
+        "Error reading SSH protocol banner" + str(e)
+    )
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner
+
+Exception in thread Thread-1 (serve_client):
+Traceback (most recent call last):
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/transport.py", line 2363, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/packet.py", line 395, in readline
+    buf += self._read_timeout(timeout)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/packet.py", line 665, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+    ~~~~~~~~^^
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamim-mahmud/Workspace/kaggle-tunnel/scripts/fake_remote_ssh.py", line 122, in serve_client
+    transport.start_server(server=server)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/transport.py", line 836, in start_server
+    raise e
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/transport.py", line 2179, in run
+    self._check_banner()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/home/hamim-mahmud/miniconda3/lib/python3.13/site-packages/paramiko/transport.py", line 2367, in _check_banner
+    raise SSHException(
+        "Error reading SSH protocol banner" + str(e)
+    )
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner

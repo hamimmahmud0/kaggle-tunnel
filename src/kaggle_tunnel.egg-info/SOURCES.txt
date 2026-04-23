@@ -3,6 +3,7 @@ pyproject.toml
 src/kaggle_tunnel/__init__.py
 src/kaggle_tunnel/__main__.py
 src/kaggle_tunnel/app.py
+src/kaggle_tunnel/kgtun.py
 src/kaggle_tunnel/run.py
 src/kaggle_tunnel.egg-info/PKG-INFO
 src/kaggle_tunnel.egg-info/SOURCES.txt

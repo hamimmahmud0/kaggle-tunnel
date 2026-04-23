@@ -17,7 +17,7 @@ Ubuntu/Debian:
 
 ```bash
 sudo apt update
-sudo apt install -y python3-tk openssh-client
+sudo apt install -y python3-tk openssh-client tmux
 ```
 
 Windows:
@@ -62,6 +62,33 @@ Windows PowerShell:
 ```powershell
 kaggle-tunnel
 ```
+
+## Run `kgtun`
+
+`kgtun` is a separate tmux-oriented workflow. It keeps `kaggle-tunnel` as the desktop UI entrypoint and creates a fresh tmux session for each notebook.
+
+Run:
+
+```bash
+kgtun
+```
+
+What it does:
+
+- starts a new quick tunnel
+- chooses free local ports above `1200`
+- writes the generated notebook helper cell to `.kgtun.cell` in the current working directory
+- stores `kgtun` runtime state, logs, sessions, and isolated `cloudflared` config under `~/.config/kgtun`
+- opens a tmux session with one pane for the tunnel controller/logs and one pane for the remote notebook shell
+
+Basic `kgtun` flow:
+
+1. Run `kgtun`.
+2. Open `.kgtun.cell`.
+3. Run that code in Kaggle.
+4. Use the tmux session as your notebook shell workspace.
+
+Each `kgtun` invocation is intended to map to a separate Kaggle notebook.
 
 ## Run A Local Script On Kaggle
 

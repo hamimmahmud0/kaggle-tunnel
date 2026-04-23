@@ -1,0 +1,24 @@
+kgtun@hamim-mahmud-Lenovo-Legion-5-15IMH05:/tmp/kgtun-notebook-verify-5l74bwu6/r
+emote-workspace$ pwd
+pwd
+/tmp/kgtun-notebook-verify-5l74bwu6/remote-workspace
+kgtun@hamim-mahmud-Lenovo-Legion-5-15IMH05:/tmp/kgtun-notebook-verify-5l74bwu6/r
+emote-workspace$ ls -la
+ls -la
+total 4
+drwxrwxr-x 2 hamim-mahmud hamim-mahmud 60 Apr 23 17:26 .
+drwx------ 3 hamim-mahmud hamim-mahmud 80 Apr 23 17:26 ..
+-rw-rw-r-- 1 hamim-mahmud hamim-mahmud 31 Apr 23 17:26 hello.txt
+kgtun@hamim-mahmud-Lenovo-Legion-5-15IMH05:/tmp/kgtun-notebook-verify-5l74bwu6/r
+emote-workspace$
+
+
+
+
+
+
+
+
+
+
+

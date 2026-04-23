@@ -1,0 +1,24 @@
+kgtun@fake-remote:/tmp/kgtun-verify-s6m4hzw5/remote-workspace$ /tmp/kgtun-verify
+-s6m4hzw5/remote-workspace
+kgtun@fake-remote:/tmp/kgtun-verify-s6m4hzw5/remote-workspace$ total 4
+drwxrwxr-x 2 hamim-mahmud hamim-mahmud 60 Apr 23 17:11 .
+drwx------ 3 hamim-mahmud hamim-mahmud 80 Apr 23 17:11 ..
+-rw-rw-r-- 1 hamim-mahmud hamim-mahmud 23 Apr 23 17:11 hello.txt
+kgtun@fake-remote:/tmp/kgtun-verify-s6m4hzw5/remote-workspace$ Socket exception:
+ Connection reset by peer (104)
+
+[wrapper exit 0]
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,22 @@
+server: handle_ssh_client start
+server: term_type branch tmux-256color
+server: child pid=64728
+server: resized to (80, 24, 0, 0)
+server: pty chunk=8
+server: pty chunk=10
+server: stdin chunk=110
+server: stdin chunk=96
+server: pty chunk=120
+server: pty chunk=210
+server: pty chunk=256
+server: pty chunk=10
+server: pty chunk=127
+server: stdin chunk=4
+server: pty chunk=5
+server: pty chunk=190
+server: stdin chunk=7
+server: pty chunk=8
+server: pty chunk=9
+server: pty chunk=192
+server: pty chunk=8
+server: pty chunk=119
