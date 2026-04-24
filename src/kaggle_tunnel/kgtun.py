@@ -33,7 +33,7 @@ DEFAULT_PROXY_PORT = 10022
 SESSION_READY_TIMEOUT_SECONDS = 90
 CLI_NAME = "kmux"
 SESSION_FILE_NAME = ".kmux.session.json"
-CELL_FILE_NAME = ".kmux.cell"
+CELL_FILE_NAME = "kmux.cell"
 LOG_FILE_NAME = "kmux.log"
 
 
@@ -295,6 +295,7 @@ def serve_session(session_file: Path):
         config_dir=str(KGTUN_CONFIG_DIR),
         cloudflared_home=str(KGTUN_CLOUDFLARED_HOME_DIR),
     )
+    log_line(log_file, f"SSH password (Shared token): {token}")
 
     try:
         runtime.run_coro(runtime.start_server(control_port, token)).result()

@@ -230,7 +230,7 @@ def main():
                 "proxy_port": port,
                 "shared_token": password,
                 "ssh_user": "notebook",
-                "cell_file": str(temp_root / ".kmux.cell"),
+                "cell_file": str(temp_root / "kmux.cell"),
                 "cwd": str(remote_cwd),
             },
             indent=2,

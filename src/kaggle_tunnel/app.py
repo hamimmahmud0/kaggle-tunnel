@@ -271,11 +271,11 @@ def get_embedded_ssh_host_key_info():
         host_key.write_private_key(str(HOST_KEY_PATH))
         print(f"Generated embedded SSH host key at {{HOST_KEY_PATH}}")
     host_key = asyncssh.read_private_key(str(HOST_KEY_PATH))
-    return {
+    return {{
         "path": str(HOST_KEY_PATH),
         "fingerprint": host_key.get_fingerprint(),
         "public_key": host_key.export_public_key().decode("ascii").strip(),
-    }
+    }}
 
 
 async def start_embedded_ssh_server():

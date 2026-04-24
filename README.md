@@ -77,7 +77,7 @@ What it does:
 
 - starts a new quick tunnel
 - chooses free local ports above `1200`
-- writes the generated notebook helper cell to `.kmux.cell` in the current working directory
+- writes the generated notebook helper cell to `kmux.cell` in the current working directory
 - writes controller logs to `kmux.log` in the current working directory
 - stores `kmux` runtime state, sessions, and isolated `cloudflared` config under `~/.config/kmux`
 - opens a tmux session directly into the remote notebook shell
@@ -85,7 +85,7 @@ What it does:
 Basic `kmux` flow:
 
 1. Run `kmux`.
-2. Open `.kmux.cell`.
+2. Open `kmux.cell`.
 3. Run that code in Kaggle.
 4. Use the tmux session as your notebook shell workspace.
 
