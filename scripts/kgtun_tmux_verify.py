@@ -65,14 +65,14 @@ def render_text_image(text: str, image_path: Path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Drive kgtun shell in tmux and capture a rendered pane image.")
-    parser.add_argument("--output-dir", default="generated/kgtun-verify")
+    parser = argparse.ArgumentParser(description="Drive kmux shell in tmux and capture a rendered pane image.")
+    parser.add_argument("--output-dir", default="generated/kmux-verify")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    temp_root = Path(tempfile.mkdtemp(prefix="kgtun-verify-"))
+    temp_root = Path(tempfile.mkdtemp(prefix="kmux-verify-"))
     remote_cwd = temp_root / "remote-workspace"
     remote_cwd.mkdir(parents=True, exist_ok=True)
     (remote_cwd / "hello.txt").write_text("hello from fake remote\n", encoding="utf-8")
@@ -80,7 +80,7 @@ def main():
 
     port = find_free_port()
     password = "test-token"
-    session_file = temp_root / ".kgtun.session.json"
+    session_file = temp_root / ".kmux.session.json"
     session_file.write_text(
         json.dumps(
             {
@@ -89,7 +89,7 @@ def main():
                 "proxy_port": port,
                 "shared_token": password,
                 "ssh_user": "notebook",
-                "cell_file": str(temp_root / ".kgtun.cell"),
+                "cell_file": str(temp_root / ".kmux.cell"),
                 "cwd": str(remote_cwd),
             },
             indent=2,
@@ -97,7 +97,7 @@ def main():
         encoding="utf-8",
     )
 
-    session_name = f"kgtun-verify-{int(time.time())}"
+    session_name = f"kmux-verify-{int(time.time())}"
 
     fake_server = subprocess.Popen(
         [
@@ -126,7 +126,7 @@ def main():
             "sh",
             "-lc",
             (
-                f"{shutil.which('python') or sys.executable} kgtun.py shell "
+                f"{shutil.which('python') or sys.executable} kmux.py shell "
                 f"--session-file {session_file} ; "
                 "status=$?; "
                 "printf '\\n[wrapper exit %s]\\n' \"$status\"; "

@@ -48,7 +48,7 @@ class FakeShell:
         self.prompt = self._format_prompt()
 
     def _format_prompt(self):
-        return "\033[1;32mkgtun@fake-remote\033[0m:\033[1;34m%s\033[0m$ " % self.cwd
+        return "\033[1;32mkmux@fake-remote\033[0m:\033[1;34m%s\033[0m$ " % self.cwd
 
     def send(self, text: str):
         self.channel.send(text.replace("\n", "\r\n"))
@@ -136,7 +136,7 @@ def serve_client(client_sock, username: str, password: str, cwd: Path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fake SSH server for kgtun verification.")
+    parser = argparse.ArgumentParser(description="Fake SSH server for kmux verification.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--user", default="notebook")

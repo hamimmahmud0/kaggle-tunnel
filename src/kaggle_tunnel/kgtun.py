@@ -31,18 +31,19 @@ MIN_PORT = 1201
 DEFAULT_CONTROL_PORT = 8765
 DEFAULT_PROXY_PORT = 10022
 SESSION_READY_TIMEOUT_SECONDS = 90
-SESSION_FILE_NAME = ".kgtun.session.json"
-CELL_FILE_NAME = ".kgtun.cell"
+CLI_NAME = "kmux"
+SESSION_FILE_NAME = ".kmux.session.json"
+CELL_FILE_NAME = ".kmux.cell"
+LOG_FILE_NAME = "kmux.log"
 
 
 def get_kgtun_config_dir() -> Path:
     base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return base / "kgtun"
+    return base / CLI_NAME
 
 
 KGTUN_CONFIG_DIR = get_kgtun_config_dir()
 KGTUN_SESSIONS_DIR = KGTUN_CONFIG_DIR / "sessions"
-KGTUN_LOGS_DIR = KGTUN_CONFIG_DIR / "logs"
 KGTUN_CLOUDFLARED_HOME_DIR = KGTUN_CONFIG_DIR / "cloudflared-home"
 KGTUN_STATE_FILE = KGTUN_CONFIG_DIR / "state.json"
 
@@ -52,14 +53,14 @@ def now_timestamp() -> str:
 
 
 def ensure_kgtun_runtime_files():
-    for directory in (KGTUN_CONFIG_DIR, KGTUN_SESSIONS_DIR, KGTUN_LOGS_DIR, KGTUN_CLOUDFLARED_HOME_DIR):
+    for directory in (KGTUN_CONFIG_DIR, KGTUN_SESSIONS_DIR, KGTUN_CLOUDFLARED_HOME_DIR):
         directory.mkdir(parents=True, exist_ok=True)
 
     state = {
         "created_at": now_timestamp(),
         "python_executable": sys.executable,
         "app_module_file": str(Path(app_module.__file__).resolve()),
-        "kgtun_module_file": str(Path(__file__).resolve()),
+        "kmux_module_file": str(Path(__file__).resolve()),
         "platform": platform.platform(),
         "tmux_path": shutil.which("tmux") or "",
         "cloudflared_home": str(KGTUN_CLOUDFLARED_HOME_DIR),
@@ -69,7 +70,7 @@ def ensure_kgtun_runtime_files():
 
 def ensure_tmux():
     if shutil.which("tmux") is None:
-        raise RuntimeError("tmux is required for kgtun but was not found on PATH.")
+        raise RuntimeError(f"tmux is required for {CLI_NAME} but was not found on PATH.")
 
 
 def find_free_port(start_port: int) -> int:
@@ -118,6 +119,7 @@ def write_initial_session_file(session_file: Path, cwd: Path, session_name: str)
         session_name=session_name,
         cwd=str(cwd),
         cell_file=str(cwd / CELL_FILE_NAME),
+        log_file=str(cwd / LOG_FILE_NAME),
         status="starting",
         created_at=now_timestamp(),
         remote_connected=False,
@@ -144,16 +146,24 @@ def build_module_command(*args: str) -> str:
     return shell_join([sys.executable, "-m", "kaggle_tunnel.kgtun", *args])
 
 
-def create_tmux_session(session_name: str, cwd: Path, session_file: Path):
-    serve_command = build_module_command("serve", "--session-file", str(session_file))
-    shell_command = build_module_command("shell", "--session-file", str(session_file))
+def build_module_argv(*args: str) -> list[str]:
+    return [sys.executable, "-m", "kaggle_tunnel.kgtun", *args]
 
-    run_tmux("new-session", "-d", "-s", session_name, "-c", str(cwd), serve_command)
+
+def create_tmux_session(session_name: str, cwd: Path, session_file: Path):
+    shell_command = build_module_command("shell", "--session-file", str(session_file))
+    cleanup_command = build_module_command("cleanup", "--session-file", str(session_file))
+
+    run_tmux("new-session", "-d", "-s", session_name, "-c", str(cwd), shell_command)
     run_tmux("rename-window", "-t", f"{session_name}:0", "notebook")
-    run_tmux("split-window", "-h", "-t", f"{session_name}:0", "-c", str(cwd), shell_command)
     try_run_tmux("set-option", "-t", session_name, "default-command", shell_command)
-    try_run_tmux("set-option", "-t", session_name, "remain-on-exit", "on")
-    run_tmux("select-pane", "-t", f"{session_name}:0.1")
+    run_tmux(
+        "set-hook",
+        "-t",
+        session_name,
+        "session-closed",
+        f"run-shell -b {shlex.quote(cleanup_command)}",
+    )
 
 
 def attach_tmux_session(session_name: str):
@@ -164,7 +174,7 @@ def attach_tmux_session(session_name: str):
 
 
 def generate_session_name() -> str:
-    return f"kgtun-{time.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
+    return f"{CLI_NAME}-{time.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
 
 
 def wait_for_session_artifacts(session_file: Path, timeout_seconds: int = SESSION_READY_TIMEOUT_SECONDS):
@@ -176,9 +186,9 @@ def wait_for_session_artifacts(session_file: Path, timeout_seconds: int = SESSIO
             if data.get("public_url") and cell_file.exists():
                 return data
             if data.get("status") == "failed":
-                raise RuntimeError(data.get("error", "kgtun session failed to start."))
+                raise RuntimeError(data.get("error", f"{CLI_NAME} session failed to start."))
         time.sleep(0.5)
-    raise RuntimeError("Timed out waiting for kgtun to produce the notebook cell.")
+    raise RuntimeError(f"Timed out waiting for {CLI_NAME} to produce the notebook cell.")
 
 
 def launch_kgtun(cwd: Path):
@@ -191,19 +201,55 @@ def launch_kgtun(cwd: Path):
     session_file = session_dir / SESSION_FILE_NAME
     write_initial_session_file(session_file, cwd, session_name)
     create_tmux_session(session_name, cwd, session_file)
-    wait_for_session_artifacts(session_file)
-    attach_tmux_session(session_name)
+    controller_process = start_controller_process(session_file, cwd)
+    try:
+        wait_for_session_artifacts(session_file)
+        attach_tmux_session(session_name)
+    except Exception:
+        stop_controller_process(session_file, controller_process.pid)
+        try_run_tmux("kill-session", "-t", session_name)
+        raise
 
 
 def log_line(log_file: Path, message: str):
     timestamped = f"[{time.strftime('%H:%M:%S')}] {message}"
-    print(timestamped, flush=True)
     with log_file.open("a", encoding="utf-8") as handle:
         handle.write(timestamped + "\n")
 
 
 def write_cell_file(cell_path: Path, cell_code: str):
     cell_path.write_text(cell_code, encoding="utf-8")
+
+
+def start_controller_process(session_file: Path, cwd: Path) -> subprocess.Popen:
+    session_store = SessionStore(session_file)
+    log_file = Path(session_store.get("log_file", str(cwd / LOG_FILE_NAME))).resolve()
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    with log_file.open("a", encoding="utf-8") as handle:
+        process = subprocess.Popen(
+            build_module_argv("serve", "--session-file", str(session_file)),
+            cwd=str(cwd),
+            stdin=subprocess.DEVNULL,
+            stdout=handle,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    session_store.update(controller_pid=process.pid)
+    return process
+
+
+def stop_controller_process(session_file: Path, controller_pid: int | None = None):
+    session_store = SessionStore(session_file)
+    pid = controller_pid or session_store.get("controller_pid")
+    if not pid:
+        return
+    try:
+        os.kill(int(pid), signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    except OSError:
+        pass
+    session_store.update(controller_pid=None)
 
 
 def serve_session(session_file: Path):
@@ -214,8 +260,8 @@ def serve_session(session_file: Path):
     session_store = SessionStore(session_file)
     cwd = Path(session_store.get("cwd", os.getcwd())).resolve()
     cell_file = Path(session_store.get("cell_file", str(cwd / CELL_FILE_NAME))).resolve()
-    log_file = KGTUN_LOGS_DIR / f"{session_store.get('session_name', 'kgtun')}.log"
-    KGTUN_LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    log_file = Path(session_store.get("log_file", str(cwd / LOG_FILE_NAME))).resolve()
+    log_file.parent.mkdir(parents=True, exist_ok=True)
 
     runtime = TunnelRuntime(
         log_callback=lambda message: log_line(log_file, message),
@@ -275,7 +321,7 @@ def serve_session(session_file: Path):
             cell_file=str(cell_file),
         )
         log_line(log_file, f"Notebook cell written to {cell_file}")
-        log_line(log_file, "Run the code in .kgtun.cell on Kaggle, then use the shell pane.")
+        log_line(log_file, f"Run the code in {CELL_FILE_NAME} on Kaggle, then use the shell pane.")
 
         while not stop_event.wait(0.5):
             pass
@@ -283,6 +329,7 @@ def serve_session(session_file: Path):
         session_store.update(status="failed", error=str(exc))
         raise
     finally:
+        session_store.update(controller_pid=None)
         runtime.stop_cloudflared()
         try:
             runtime.run_coro(runtime.stop_server()).result(timeout=5)
@@ -308,7 +355,7 @@ def wait_for_session_data(session_file: Path):
         if session_file.exists():
             data = json.loads(session_file.read_text(encoding="utf-8"))
             if data.get("status") == "failed":
-                raise RuntimeError(data.get("error", "kgtun session failed."))
+                raise RuntimeError(data.get("error", f"{CLI_NAME} session failed."))
             if data.get("proxy_port") and data.get("shared_token"):
                 return data
         time.sleep(0.5)
@@ -319,7 +366,7 @@ def wait_for_remote_connection(session_file: Path, proxy_port: int, cell_file: s
     while True:
         data = json.loads(session_file.read_text(encoding="utf-8"))
         if data.get("status") == "failed":
-            raise RuntimeError(data.get("error", "kgtun session failed."))
+            raise RuntimeError(data.get("error", f"{CLI_NAME} session failed."))
         if data.get("remote_connected"):
             print("Notebook connected. Starting SSH session...", flush=True)
             return data
@@ -357,7 +404,7 @@ def interactive_shell(client, remote_cwd: str):
 
     bootstrap_commands = [
         f"cd {shlex.quote(remote_cwd)} 2>/dev/null || cd /kaggle/working 2>/dev/null || true",
-        r"export PS1=$'\e[1;32mkgtun@\h\e[0m:\e[1;34m\w\e[0m\$ '",
+        rf"export PS1=$'\e[1;32m{CLI_NAME}@\h\e[0m:\e[1;34m\w\e[0m\$ '",
         r"printf 'Remote cwd: %s\n' \"$PWD\"",
         "clear",
     ]
@@ -438,21 +485,21 @@ def connect_shell(session_file: Path):
 
 
 def parse_args():
-    if len(sys.argv) > 1 and sys.argv[1] in {"serve", "shell"}:
-        parser = argparse.ArgumentParser(prog=f"kgtun {sys.argv[1]}")
+    if len(sys.argv) > 1 and sys.argv[1] in {"serve", "shell", "cleanup"}:
+        parser = argparse.ArgumentParser(prog=f"{CLI_NAME} {sys.argv[1]}")
         parser.add_argument("--session-file", required=True)
         args = parser.parse_args(sys.argv[2:])
         args.subcommand = sys.argv[1]
         return args
 
     parser = argparse.ArgumentParser(
-        prog="kgtun",
+        prog=CLI_NAME,
         description="Start a Kaggle notebook tunnel and open a tmux session around it.",
     )
     parser.add_argument(
         "--cwd",
         default=".",
-        help="Working directory where .kgtun.cell will be written (default: current directory).",
+        help=f"Working directory where {CELL_FILE_NAME} and {LOG_FILE_NAME} will be written (default: current directory).",
     )
     args = parser.parse_args()
     args.subcommand = None
@@ -466,6 +513,9 @@ def main():
         return
     if args.subcommand == "shell":
         connect_shell(Path(args.session_file).resolve())
+        return
+    if args.subcommand == "cleanup":
+        stop_controller_process(Path(args.session_file).resolve())
         return
     launch_kgtun(Path(args.cwd).resolve())
 

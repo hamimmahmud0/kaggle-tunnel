@@ -15,7 +15,7 @@ dependencies = [
 [project.scripts]
 kaggle-tunnel = "kaggle_tunnel.app:main"
 kaggle-tunnel-run = "kaggle_tunnel.run:main"
-kgtun = "kaggle_tunnel.kgtun:main"
+kmux = "kaggle_tunnel.kmux:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

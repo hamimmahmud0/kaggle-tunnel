@@ -264,17 +264,23 @@ async def handle_ssh_client(process):
     process.exit(returncode)
 
 
-def ensure_embedded_ssh_host_key() -> str:
+def get_embedded_ssh_host_key_info():
     HOST_KEY_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not HOST_KEY_PATH.exists():
         host_key = asyncssh.generate_private_key("ssh-rsa")
         host_key.write_private_key(str(HOST_KEY_PATH))
         print(f"Generated embedded SSH host key at {{HOST_KEY_PATH}}")
-    return str(HOST_KEY_PATH)
+    host_key = asyncssh.read_private_key(str(HOST_KEY_PATH))
+    return {
+        "path": str(HOST_KEY_PATH),
+        "fingerprint": host_key.get_fingerprint(),
+        "public_key": host_key.export_public_key().decode("ascii").strip(),
+    }
 
 
 async def start_embedded_ssh_server():
-    host_key_path = ensure_embedded_ssh_host_key()
+    host_key_info = get_embedded_ssh_host_key_info()
+    host_key_path = host_key_info["path"]
     await asyncssh.create_server(
         EmbeddedSSHServer,
         EMBEDDED_SSH_HOST,
@@ -288,12 +294,16 @@ async def start_embedded_ssh_server():
     )
     print("SSH password is the Shared token from the PC app.")
     print(f"SSH host key path: {{host_key_path}}")
+    print(f"SSH host key fingerprint: {{host_key_info['fingerprint']}}")
+    print(f"SSH host public key: {{host_key_info['public_key']}}")
+    return host_key_info
 
 
 class RemoteAgent:
-    def __init__(self, control_url: str, control_token: str):
+    def __init__(self, control_url: str, control_token: str, host_key_info):
         self.control_url = control_url
         self.control_token = control_token
+        self.host_key_info = host_key_info
         self.websocket = None
         self.tcp_handles = {{}}
 
@@ -406,6 +416,9 @@ class RemoteAgent:
                             "ssh_user": EMBEDDED_SSH_USER,
                             "ssh_host": EMBEDDED_SSH_HOST,
                             "ssh_port": EMBEDDED_SSH_PORT,
+                            "ssh_host_key_path": self.host_key_info.get("path", ""),
+                            "ssh_host_key_fingerprint": self.host_key_info.get("fingerprint", ""),
+                            "ssh_host_public_key": self.host_key_info.get("public_key", ""),
                         }}
                     )
                     async for raw in websocket:
@@ -418,9 +431,9 @@ class RemoteAgent:
 
 
 async def main():
-    await start_embedded_ssh_server()
+    host_key_info = await start_embedded_ssh_server()
     print("Remote notebook agent started. Leave this cell running.")
-    await RemoteAgent(CONTROL_URL, CONTROL_TOKEN).run()
+    await RemoteAgent(CONTROL_URL, CONTROL_TOKEN, host_key_info).run()
 
 
 asyncio.get_event_loop().run_until_complete(main())
@@ -629,6 +642,12 @@ class TunnelRuntime:
                     f"{payload.get('ssh_host', '127.0.0.1')}:{payload.get('ssh_port')} "
                     f"user={payload.get('ssh_user', 'notebook')}"
                 )
+            if payload.get("ssh_host_key_path"):
+                self.log(f"Embedded SSH host key path: {payload['ssh_host_key_path']}")
+            if payload.get("ssh_host_key_fingerprint"):
+                self.log(f"Embedded SSH host key fingerprint: {payload['ssh_host_key_fingerprint']}")
+            if payload.get("ssh_host_public_key"):
+                self.log(f"Embedded SSH host public key: {payload['ssh_host_public_key']}")
         elif message_type == "command_result":
             request_id = payload.get("request_id")
             self.log(

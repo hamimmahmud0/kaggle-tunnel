@@ -63,32 +63,33 @@ Windows PowerShell:
 kaggle-tunnel
 ```
 
-## Run `kgtun`
+## Run `kmux`
 
-`kgtun` is a separate tmux-oriented workflow. It keeps `kaggle-tunnel` as the desktop UI entrypoint and creates a fresh tmux session for each notebook.
+`kmux` is a separate tmux-oriented workflow. It keeps `kaggle-tunnel` as the desktop UI entrypoint and creates a fresh tmux session for each notebook.
 
 Run:
 
 ```bash
-kgtun
+kmux
 ```
 
 What it does:
 
 - starts a new quick tunnel
 - chooses free local ports above `1200`
-- writes the generated notebook helper cell to `.kgtun.cell` in the current working directory
-- stores `kgtun` runtime state, logs, sessions, and isolated `cloudflared` config under `~/.config/kgtun`
-- opens a tmux session with one pane for the tunnel controller/logs and one pane for the remote notebook shell
+- writes the generated notebook helper cell to `.kmux.cell` in the current working directory
+- writes controller logs to `kmux.log` in the current working directory
+- stores `kmux` runtime state, sessions, and isolated `cloudflared` config under `~/.config/kmux`
+- opens a tmux session directly into the remote notebook shell
 
-Basic `kgtun` flow:
+Basic `kmux` flow:
 
-1. Run `kgtun`.
-2. Open `.kgtun.cell`.
+1. Run `kmux`.
+2. Open `.kmux.cell`.
 3. Run that code in Kaggle.
 4. Use the tmux session as your notebook shell workspace.
 
-Each `kgtun` invocation is intended to map to a separate Kaggle notebook.
+Each `kmux` invocation is intended to map to a separate Kaggle notebook.
 
 ## Run A Local Script On Kaggle
 

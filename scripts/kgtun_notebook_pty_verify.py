@@ -207,21 +207,21 @@ def capture_pane(session_name: str) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Verify kgtun shell against a local asyncssh PTY server.")
-    parser.add_argument("--output-dir", default="generated/kgtun-notebook-verify")
+    parser = argparse.ArgumentParser(description="Verify kmux shell against a local asyncssh PTY server.")
+    parser.add_argument("--output-dir", default="generated/kmux-notebook-verify")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    temp_root = Path(tempfile.mkdtemp(prefix="kgtun-notebook-verify-"))
+    temp_root = Path(tempfile.mkdtemp(prefix="kmux-notebook-verify-"))
     remote_cwd = temp_root / "remote-workspace"
     remote_cwd.mkdir(parents=True, exist_ok=True)
     (remote_cwd / "hello.txt").write_text("hello from notebook pty verify\n", encoding="utf-8")
 
     port = find_free_port()
     password = "test-token"
-    session_file = temp_root / ".kgtun.session.json"
+    session_file = temp_root / ".kmux.session.json"
     session_file.write_text(
         json.dumps(
             {
@@ -230,7 +230,7 @@ def main():
                 "proxy_port": port,
                 "shared_token": password,
                 "ssh_user": "notebook",
-                "cell_file": str(temp_root / ".kgtun.cell"),
+                "cell_file": str(temp_root / ".kmux.cell"),
                 "cwd": str(remote_cwd),
             },
             indent=2,
@@ -245,7 +245,7 @@ def main():
         text=True,
     )
 
-    session_name = f"kgtun-notebook-verify-{int(time.time())}"
+    session_name = f"kmux-notebook-verify-{int(time.time())}"
 
     try:
         deadline = time.monotonic() + 10
@@ -267,7 +267,7 @@ def main():
                 "sh",
                 "-lc",
                 (
-                    f"{shutil.which('python') or sys.executable} kgtun.py shell "
+                    f"{shutil.which('python') or sys.executable} kmux.py shell "
                     f"--session-file {session_file} ; "
                     "status=$?; "
                     "printf '\\n[wrapper exit %s]\\n' \"$status\"; "
