@@ -130,9 +130,7 @@ async def handle_ssh_client(process):
     term_size = getattr(process, "term_size", None)
 
     def apply_pty_size(fd, size=None):
-        current_size = size or term_size
-        if not current_size:
-            return
+        current_size = size or term_size or (80, 24)
         try:
             width, height = int(current_size[0]), int(current_size[1])
             winsize = struct.pack("HHHH", height, width, 0, 0)
@@ -188,7 +186,7 @@ async def handle_ssh_client(process):
             try:
                 while True:
                     try:
-                        chunk = await process.stdin.read(65536)
+                        chunk = await process.stdin.read(1024)
                     except asyncssh.TerminalSizeChanged as exc:
                         apply_pty_size(master_fd, exc.term_size)
                         continue
@@ -206,7 +204,7 @@ async def handle_ssh_client(process):
                     chunk = await asyncio.to_thread(os.read, master_fd, 65536)
                     if not chunk:
                         break
-                    process.stdout.write(chunk.decode("utf-8", errors="replace"))
+                    process.stdout.write(chunk)
                     await process.stdout.drain()
             except Exception:
                 pass
@@ -287,6 +285,7 @@ async def start_embedded_ssh_server():
         EMBEDDED_SSH_PORT,
         server_host_keys=[host_key_path],
         process_factory=handle_ssh_client,
+        encoding=None,
     )
     print(
         f"Embedded SSH server listening on {{EMBEDDED_SSH_HOST}}:{{EMBEDDED_SSH_PORT}} "
@@ -701,7 +700,8 @@ class TunnelRuntime:
             text=True,
             bufsize=1,
         )
-        threading.Thread(target=self._watch_cloudflared_output, daemon=True).start()
+        process = self.cloudflared_process
+        threading.Thread(target=self._watch_cloudflared_output, args=(process,), daemon=True).start()
 
     def build_cloudflared_env(self):
         CLOUDFLARED_HOME_DIR.mkdir(parents=True, exist_ok=True)
@@ -722,9 +722,10 @@ class TunnelRuntime:
             env.pop(key, None)
         return env
 
-    def _watch_cloudflared_output(self):
-        assert self.cloudflared_process is not None
-        for line in self.cloudflared_process.stdout:
+    def _watch_cloudflared_output(self, process):
+        if process is None or process.stdout is None:
+            return
+        for line in process.stdout:
             line = line.rstrip()
             self.log(f"[cloudflared] {line}")
             if "trycloudflare.com" in line and self.public_url is None:
@@ -741,19 +742,23 @@ class TunnelRuntime:
                                 "Stop and restart the tunnel to get a fresh quick tunnel URL."
                             )
                         break
-        return_code = self.cloudflared_process.wait()
+        return_code = process.wait()
         self.log(f"cloudflared exited with code {return_code}")
-        self.public_url = None
-        self.state_callback(public_url=None)
+        if self.cloudflared_process is process:
+            self.cloudflared_process = None
+            self.public_url = None
+            self.state_callback(public_url=None)
 
     def stop_cloudflared(self):
-        if self.cloudflared_process and self.cloudflared_process.poll() is None:
-            self.cloudflared_process.terminate()
+        process = self.cloudflared_process
+        if process and process.poll() is None:
+            process.terminate()
             try:
-                self.cloudflared_process.wait(timeout=10)
+                process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                self.cloudflared_process.kill()
-        self.cloudflared_process = None
+                process.kill()
+        if self.cloudflared_process is process:
+            self.cloudflared_process = None
         self.public_url = None
         self.state_callback(public_url=None)
 

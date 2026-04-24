@@ -386,6 +386,27 @@ def maybe_resize_channel(channel):
     channel.resize_pty(width=columns, height=rows)
 
 
+def get_terminal_dimensions() -> tuple[int, int]:
+    columns, rows = shutil.get_terminal_size((80, 24))
+    return max(1, columns), max(1, rows)
+
+
+def choose_remote_term() -> str:
+    override = os.environ.get("KMUX_TERM") or os.environ.get("KAGGLE_TUNNEL_TERM")
+    if override:
+        return override.strip()
+
+    local_term = os.environ.get("TERM", "").strip()
+    if not local_term:
+        return "xterm-256color"
+
+    # Kaggle images don't reliably ship terminfo entries for tmux/screen
+    # variants, and fullscreen TUIs can degrade badly when TERM is unknown.
+    if local_term.startswith("tmux") or local_term.startswith("screen"):
+        return "xterm-256color"
+    return local_term
+
+
 def wait_for_initial_shell_prompt(channel, timeout_seconds: float = 2.0):
     deadline = time.monotonic() + timeout_seconds
     saw_data = False
@@ -399,7 +420,13 @@ def wait_for_initial_shell_prompt(channel, timeout_seconds: float = 2.0):
 
 
 def interactive_shell(client, remote_cwd: str):
-    channel = client.invoke_shell(term=os.environ.get("TERM", "xterm-256color"))
+    columns, rows = get_terminal_dimensions()
+    remote_term = choose_remote_term()
+    channel = client.invoke_shell(
+        term=remote_term,
+        width=columns,
+        height=rows,
+    )
     maybe_resize_channel(channel)
     wait_for_initial_shell_prompt(channel)
 
@@ -412,7 +439,8 @@ def interactive_shell(client, remote_cwd: str):
     for command in bootstrap_commands:
         channel.send(command + "\r")
 
-    old_tty = termios.tcgetattr(sys.stdin.fileno())
+    stdin_fd = sys.stdin.fileno()
+    old_tty = termios.tcgetattr(stdin_fd)
 
     def handle_resize(_signum, _frame):
         try:
@@ -420,14 +448,21 @@ def interactive_shell(client, remote_cwd: str):
         except Exception:
             pass
 
+    def handle_sigint(_signum, _frame):
+        try:
+            channel.sendall(b"\x03")
+        except Exception:
+            pass
+
     previous_winch = signal.getsignal(signal.SIGWINCH)
+    previous_sigint = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGWINCH, handle_resize)
-    tty.setraw(sys.stdin.fileno())
-    tty.setcbreak(sys.stdin.fileno())
+    signal.signal(signal.SIGINT, handle_sigint)
+    tty.setraw(stdin_fd)
 
     try:
         while True:
-            readers, _, _ = select([channel, sys.stdin], [], [])
+            readers, _, _ = select([channel, stdin_fd], [], [])
             if channel in readers:
                 if channel.recv_ready():
                     data = channel.recv(4096)
@@ -436,14 +471,15 @@ def interactive_shell(client, remote_cwd: str):
                     os.write(sys.stdout.fileno(), data)
                 if channel.exit_status_ready() and not channel.recv_ready():
                     break
-            if sys.stdin in readers:
-                data = os.read(sys.stdin.fileno(), 1024)
+            if stdin_fd in readers:
+                data = os.read(stdin_fd, 1024)
                 if not data:
                     break
-                channel.send(data)
+                channel.sendall(data)
     finally:
-        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_tty)
+        termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_tty)
         signal.signal(signal.SIGWINCH, previous_winch)
+        signal.signal(signal.SIGINT, previous_sigint)
         channel.close()
 
 
