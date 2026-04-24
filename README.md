@@ -56,6 +56,16 @@ Once the tunnel is generated you need to copy the code in `kmux.cell` and paste 
 If tunnel is successfully created you will see this output:
 ![Waiting](img/waiting.png)
 
+### Copy the cell code
+
+In another terminal in same directory run:
+```bash
+cat kmux.cell | wl-copy
+```
+
+Paste cell code in your notebook
+
+
 ### Done!
 
 Wait for notebook to connect.
