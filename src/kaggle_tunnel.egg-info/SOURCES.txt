@@ -5,7 +5,10 @@ src/kaggle_tunnel/__main__.py
 src/kaggle_tunnel/app.py
 src/kaggle_tunnel/kgtun.py
 src/kaggle_tunnel/kmux.py
+src/kaggle_tunnel/notebook_cell.py
+src/kaggle_tunnel/proxy.py
 src/kaggle_tunnel/run.py
+src/kaggle_tunnel/tunnelbroker.py
 src/kaggle_tunnel.egg-info/PKG-INFO
 src/kaggle_tunnel.egg-info/SOURCES.txt
 src/kaggle_tunnel.egg-info/dependency_links.txt

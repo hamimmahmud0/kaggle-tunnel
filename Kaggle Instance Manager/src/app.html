@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kaggle Instance Manager</title>
+    <script>
+      (function() {
+        var mq = window.matchMedia('(prefers-color-scheme: dark)');
+        function sync(e) { document.documentElement.classList.toggle('dark', e.matches); }
+        sync(mq);
+        mq.addEventListener('change', sync);
+      })();
+    </script>
+    <style>
+      :root {
+        --bg: #f1f5f9;
+        --text: #0f172a;
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --muted: #64748b;
+        --input-bg: #ffffff;
+        --code-bg: #f1f5f9;
+        --header-bg: #ffffff;
+        --header-border: #e2e8f0;
+        --btn-ghost-hover: #f1f5f9;
+        --btn-secondary-bg: #e2e8f0;
+        --btn-secondary-text: #475569;
+        --status-info-bg: #dbeafe;
+        --status-info-text: #1e40af;
+        --status-error-bg: #fee2e2;
+        --status-error-text: #dc2626;
+        --empty-text: #64748b;
+      }
+      .dark {
+        --bg: #0f172a;
+        --text: #e2e8f0;
+        --card-bg: #1e293b;
+        --card-border: #334155;
+        --muted: #94a3b8;
+        --input-bg: #0f172a;
+        --code-bg: #0f172a;
+        --header-bg: #1e293b;
+        --header-border: #334155;
+        --btn-ghost-hover: #334155;
+        --btn-secondary-bg: #334155;
+        --btn-secondary-text: #94a3b8;
+        --status-info-bg: #1e3a5f;
+        --status-info-text: #93c5fd;
+        --status-error-bg: #3b1c1c;
+        --status-error-text: #fca5a5;
+        --empty-text: #94a3b8;
+      }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+                     Ubuntu, Cantarell, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+    </style>
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

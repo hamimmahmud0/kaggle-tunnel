@@ -1,0 +1,26 @@
+/* Kaggle Instance Manager GNOME Extension Styles */
+
+.kgtun-status-label {
+    margin-left: 4px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+/* Instance sub-menu items */
+.kgtun-instance-name {
+    font-weight: 500;
+}
+
+.kgtun-instance-host {
+    font-size: 0.85em;
+    color: #aaa;
+}
+
+/* Status dots */
+.kgtun-dot-online {
+    color: #22c55e;
+}
+
+.kgtun-dot-offline {
+    color: #ef4444;
+}

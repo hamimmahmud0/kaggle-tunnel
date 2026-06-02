@@ -1,0 +1,9 @@
+{
+  "name": "Kaggle Instance Manager",
+  "description": "Manage and connect to Kaggle notebook instances discovered via tunnelbroker",
+  "uuid": "kgtun-manager@hamimmahmud0",
+  "shell-version": ["50"],
+  "version": 1,
+  "url": "https://github.com/hamimmahmud0/kaggle-tunnel",
+  "settings-schema": "org.gnome.shell.extensions.kgtun-manager"
+}

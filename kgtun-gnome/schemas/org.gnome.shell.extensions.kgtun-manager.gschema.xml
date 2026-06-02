@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.kgtun-manager"
+          path="/org/gnome/shell/extensions/kgtun-manager/">
+    <key name="tunnelbroker-url" type="s">
+      <default>'https://tunnelbroker.hamimmahmud0.workers.dev'</default>
+      <summary>Tunnelbroker URL</summary>
+      <description>The base URL of the tunnelbroker Worker service.</description>
+    </key>
+    <key name="tunnelbroker-group" type="s">
+      <default>'default'</default>
+      <summary>Tunnelbroker group</summary>
+      <description>The peer group namespace to query.</description>
+    </key>
+    <key name="group-token" type="s">
+      <default>''</default>
+      <summary>Group bearer token</summary>
+      <description>Optional bearer token for group-level authorization.</description>
+    </key>
+    <key name="poll-interval-seconds" type="i">
+      <default>30</default>
+      <range min="5" max="300"/>
+      <summary>Poll interval (seconds)</summary>
+      <description>How often to refresh the instance list from tunnelbroker.</description>
+    </key>
+    <key name="manager-app-path" type="s">
+      <default>''</default>
+      <summary>Manager app path</summary>
+      <description>Path to the Tauri desktop manager app binary.</description>
+    </key>
+  </schema>
+</schemalist>

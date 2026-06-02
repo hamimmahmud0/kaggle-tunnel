@@ -1354,6 +1354,49 @@ class KaggleTunnelWindow:
         self.root.mainloop()
 
 
+def _first_10_alpha(s: str) -> str:
+    """Return first 10 alphabetic characters of *s*."""
+    return "".join(c for c in s if c.isalpha())[:10]
+
+
+def generate_tunnelbroker_cell_code(
+    instance_name: str = "kaggle-instance",
+    tunnelbroker_url: str = "",
+    tunnelbroker_group: str = "",
+    tunnelbroker_token: str = "",
+    shared_secret: str | None = None,
+) -> str:
+    """Generate a notebook cell for the reversed-direction flow.
+
+    The VM runs its own tunnel (SSH + WS proxy + cloudflared), registers
+    in tunnelbroker, and authenticates callers via the group token.
+
+    The SSH password is derived from the group token (first 10 alphabetic
+    characters) so both sides know it without needing to exchange secrets.
+
+    Args:
+        instance_name: Human-readable name for this instance.
+        tunnelbroker_url: Base URL of the tunnelbroker Worker.
+        tunnelbroker_group: Peer group namespace.
+        tunnelbroker_token: Group bearer token — used for auth gate.
+        shared_secret: SSH password. Auto-derived from token if omitted.
+
+    Returns the rendered Python code string.
+    """
+    from .notebook_cell import NOTEBOOK_CELL_TEMPLATE
+
+    if shared_secret is None:
+        shared_secret = _first_10_alpha(tunnelbroker_token)
+
+    return NOTEBOOK_CELL_TEMPLATE.format(
+        instance_name=instance_name,
+        shared_secret=shared_secret,
+        tunnelbroker_url=tunnelbroker_url,
+        tunnelbroker_group=tunnelbroker_group,
+        tunnelbroker_token=tunnelbroker_token,
+    )
+
+
 def main():
     GENERATED_DIR.mkdir(parents=True, exist_ok=True)
     BIN_DIR.mkdir(parents=True, exist_ok=True)
