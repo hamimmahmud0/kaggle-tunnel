@@ -1,0 +1,62 @@
+name: kaggle-instance-manager
+base: core22
+version: "0.2.0"
+summary: Kaggle Instance Manager
+description: |
+  Multi-instance tunnel manager with tunnelbroker discovery.
+  Manage SSH connections to Kaggle notebooks via Cloudflare tunnels.
+
+grade: stable
+confinement: classic
+
+apps:
+  kaggle-instance-manager:
+    command: usr/bin/kaggle-instance-manager
+    desktop: usr/share/applications/kaggle-instance-manager.desktop
+    environment:
+      DISABLE_WAYLAND: "1"
+      KAGGLE_TUNNEL_PYTHON: "$SNAP/usr/bin/python3"
+
+parts:
+  app:
+    plugin: nil
+    override-build: |
+      # Copy pre-built binary and assets from the deb
+      PROJECT="$SNAPCRAFT_PROJECT_DIR/Kaggle Instance Manager"
+      DEB_DIR="$SNAPCRAFT_PART_SRC/deb-extract"
+
+      # Extract the deb
+      dpkg-deb -x "$PROJECT/src-tauri/target/release/bundle/deb/kaggle-instance-manager_0.2.0_amd64.deb" "$DEB_DIR"
+
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/applications
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/32x32/apps
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256@2/apps
+      cp "$DEB_DIR/usr/bin/kaggle-instance-manager" $SNAPCRAFT_PART_INSTALL/usr/bin/
+      cp "$DEB_DIR/usr/share/applications/kaggle-instance-manager.desktop" $SNAPCRAFT_PART_INSTALL/usr/share/applications/
+      cp "$DEB_DIR/usr/share/icons/hicolor/32x32/apps/kaggle-instance-manager.png" $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/32x32/apps/
+      cp "$DEB_DIR/usr/share/icons/hicolor/128x128/apps/kaggle-instance-manager.png" $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps/
+      cp "$DEB_DIR/usr/share/icons/hicolor/256x256@2/apps/kaggle-instance-manager.png" $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256@2/apps/
+    build-packages:
+      - dpkg
+    stage:
+      - usr/bin/kaggle-instance-manager
+      - usr/share/applications/kaggle-instance-manager.desktop
+      - usr/share/icons/hicolor/*/apps/kaggle-instance-manager.png
+
+  libs:
+    plugin: nil
+    stage-packages:
+      - libwebkit2gtk-4.1-0
+      - libgtk-3-0
+      - libjavascriptcoregtk-4.1-0
+      - libsoup-3.0-0
+      - libglib2.0-0
+      - libgdk-pixbuf-2.0-0
+      - libpango-1.0-0
+      - libcairo2
+      - libharfbuzz0b
+      - libepoxy0
+      - libgstreamer1.0-0
+      - libgstreamer-plugins-base1.0-0

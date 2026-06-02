@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Generated files
+generated/
+*.log
+kmux.cell
+kmux.log
+
+# Build artifacts (Tauri app)
+Kaggle Instance Manager/build/
+Kaggle Instance Manager/.svelte-kit/
+Kaggle Instance Manager/node_modules/
+Kaggle Instance Manager/package/
+Kaggle Instance Manager/src-tauri/target/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
+
+# Snapcraft
+parts/
+stage/
+prime/
+*.snap
+*.snapcraft
+
+# Tauri gen schemas
+Kaggle Instance Manager/src-tauri/gen/

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Categories=Utility;
+Comment=Kaggle Instance Manager — Multi-instance tunnel manager with tunnelbroker discovery
+Exec=kaggle-instance-manager
+StartupWMClass=kaggle-instance-manager
+Icon=kaggle-instance-manager
+Name=kaggle-instance-manager
+Terminal=false
+Type=Application
