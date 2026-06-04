@@ -29,7 +29,7 @@ fn log_dir() -> std::path::PathBuf {
 
 /// Try to find the bundled `kaggle_tunnel` Python package relative to the binary.
 /// Returns the parent directory to add to `PYTHONPATH`, or `None` if not bundled.
-fn find_bundled_kaggle_tunnel() -> Option<std::path::PathBuf> {
+pub(crate) fn find_bundled_kaggle_tunnel() -> Option<std::path::PathBuf> {
     // 1. Environment variable override (used by Snap or manual configs)
     if let Ok(path) = std::env::var("KAGGLE_TUNNEL_PYTHONPATH") {
         let p = std::path::PathBuf::from(&path);

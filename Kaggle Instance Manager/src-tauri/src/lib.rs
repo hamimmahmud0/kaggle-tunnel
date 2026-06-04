@@ -324,7 +324,19 @@ print(generate_tunnelbroker_cell_code(\
         shared_secret,
     );
 
-    let output = Command::new(&python)
+    let mut cmd = Command::new(&python);
+    // Set PYTHONPATH if bundled resources are available
+    if let Some(bundled_path) = proxy_manager::find_bundled_kaggle_tunnel() {
+        let existing_path = std::env::var("PYTHONPATH").unwrap_or_default();
+        let new_path = if existing_path.is_empty() {
+            bundled_path.to_string_lossy().to_string()
+        } else {
+            format!("{}:{}", bundled_path.to_string_lossy(), existing_path)
+        };
+        cmd.env("PYTHONPATH", new_path);
+    }
+
+    let output = cmd
         .args(["-c", &script])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

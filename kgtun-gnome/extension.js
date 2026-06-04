@@ -232,6 +232,35 @@ const KgtunIndicator = GObject.registerClass(
             clipboard.set_text(St.ClipboardType.CLIPBOARD, text);
         }
 
+        // Try to find the bundled kaggle_tunnel Python package so we can
+        // set PYTHONPATH when running the cell generator subprocess.
+        // Checks KAGGLE_TUNNEL_PYTHONPATH env var first, then known paths.
+        _findKaggleTunnelPath() {
+            // 1. Environment variable (used by Snap / manual configs)
+            const envPath = GLib.getenv('KAGGLE_TUNNEL_PYTHONPATH');
+            if (envPath) {
+                const testPath = GLib.build_filenamev([envPath, 'kaggle_tunnel', 'proxy.py']);
+                if (GLib.file_test(testPath, GLib.FileTest.EXISTS)) {
+                    return envPath;
+                }
+            }
+
+            // 2. Common .deb installation paths
+            const candidates = [
+                '/usr/lib/kaggle-instance-manager/resources',
+                '/usr/lib/x86_64-linux-gnu/kaggle-instance-manager/resources',
+                '/usr/local/lib/kaggle-instance-manager/resources',
+            ];
+            for (const candidate of candidates) {
+                const testPath = GLib.build_filenamev([candidate, 'kaggle_tunnel', 'proxy.py']);
+                if (GLib.file_test(testPath, GLib.FileTest.EXISTS)) {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
         _generateAndCopyCell(peer) {
             const name = peer.metadata?.instance_name || peer.peer;
             const baseUrl = getSettings().get_string('tunnelbroker-url');
@@ -252,10 +281,20 @@ c = generate_tunnelbroker_cell_code(
 )
 print(c)
                 `.trim();
-                const proc = Gio.Subprocess.new(
-                    ['python3', '-c', script],
-                    Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-                );
+
+                // Set PYTHONPATH so the bundled kaggle_tunnel package is found
+                const flags = Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE;
+                const launcher = new Gio.SubprocessLauncher(flags);
+                const bundledPath = this._findKaggleTunnelPath();
+                if (bundledPath) {
+                    const existing = GLib.getenv('PYTHONPATH') || '';
+                    const pythonPath = existing
+                        ? `${bundledPath}:${existing}`
+                        : bundledPath;
+                    launcher.setenv('PYTHONPATH', pythonPath, true);
+                }
+
+                const proc = launcher.spawnv(['python3', '-c', script]);
                 const [, stdout, stderr] = proc.communicate(null);
                 const cellCode = stdout ? stdout.toString() : '';
                 if (cellCode) {
