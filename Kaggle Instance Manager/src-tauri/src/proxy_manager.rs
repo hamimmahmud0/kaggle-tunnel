@@ -27,6 +27,39 @@ fn log_dir() -> std::path::PathBuf {
     dir
 }
 
+/// Try to find the bundled `kaggle_tunnel` Python package relative to the binary.
+/// Returns the parent directory to add to `PYTHONPATH`, or `None` if not bundled.
+fn find_bundled_kaggle_tunnel() -> Option<std::path::PathBuf> {
+    // 1. Environment variable override (used by Snap or manual configs)
+    if let Ok(path) = std::env::var("KAGGLE_TUNNEL_PYTHONPATH") {
+        let p = std::path::PathBuf::from(&path);
+        if p.join("kaggle_tunnel").join("proxy.py").exists() {
+            return Some(p);
+        }
+    }
+
+    // 2. Resolve relative to the current executable
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            // Typical .deb layout:
+            //   binary -> /usr/bin/kaggle-instance-manager
+            //   resources -> /usr/lib/kaggle-instance-manager/resources/kaggle_tunnel/
+            let candidates = [
+                exe_dir.join("../lib/kaggle-instance-manager/resources"),
+                exe_dir.join("../resources"),
+                exe_dir.join("resources"),
+            ];
+            for candidate in &candidates {
+                if candidate.join("kaggle_tunnel").join("proxy.py").exists() {
+                    return Some(candidate.clone());
+                }
+            }
+        }
+    }
+
+    None
+}
+
 pub struct ProxyManager {
     proxies: Mutex<HashMap<String, ProxyInfo>>,
 }
@@ -70,7 +103,19 @@ impl ProxyManager {
         let log_file = File::create(&log_path)
             .map_err(|e| format!("Failed to create log file {}: {}", log_path.display(), e))?;
 
-        let mut child = Command::new(&python)
+        // Build the command with PYTHONPATH if bundled resources are found
+        let mut cmd = Command::new(&python);
+        if let Some(bundled_path) = find_bundled_kaggle_tunnel() {
+            let existing_path = std::env::var("PYTHONPATH").unwrap_or_default();
+            let new_path = if existing_path.is_empty() {
+                bundled_path.to_string_lossy().to_string()
+            } else {
+                format!("{}:{}", bundled_path.to_string_lossy(), existing_path)
+            };
+            cmd.env("PYTHONPATH", new_path);
+        }
+
+        let mut child = cmd
             .args([
                 "-m",
                 "kaggle_tunnel.proxy",

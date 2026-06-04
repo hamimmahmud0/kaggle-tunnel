@@ -20,6 +20,7 @@ Kaggle Instance Manager/.svelte-kit/
 Kaggle Instance Manager/node_modules/
 Kaggle Instance Manager/package/
 Kaggle Instance Manager/src-tauri/target/
+Kaggle Instance Manager/src-tauri/resources/
 
 # OS
 .DS_Store

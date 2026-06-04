@@ -16,38 +16,113 @@ apps:
     environment:
       DISABLE_WAYLAND: "1"
       KAGGLE_TUNNEL_PYTHON: "$SNAP/usr/bin/python3"
+      # Tell proxy_manager.rs where the bundled kaggle_tunnel Python package lives
+      KAGGLE_TUNNEL_PYTHONPATH: "$SNAP/kaggle_tunnel"
+
+# ── Parts ──────────────────────────────────────────────────────────────
+#
+# The Snap is built in three parts:
+#   1. tauri-app    — Builds the Svelte frontend + Tauri Rust binary natively
+#   2. python-module — Bundles the kaggle_tunnel Python package
+#   3. libs         — Stages system libraries & Python runtime
 
 parts:
-  app:
+
+  # ── Part 1: Build the Tauri app from source ─────────────────────────
+  tauri-app:
     plugin: nil
+    source: .
     override-build: |
-      # Copy pre-built binary and assets from the deb
-      PROJECT="$SNAPCRAFT_PROJECT_DIR/Kaggle Instance Manager"
-      DEB_DIR="$SNAPCRAFT_PART_SRC/deb-extract"
+      set -eu
 
-      # Extract the deb
-      dpkg-deb -x "$PROJECT/src-tauri/target/release/bundle/deb/kaggle-instance-manager_0.2.0_amd64.deb" "$DEB_DIR"
+      # Install a modern Node.js (22.x) via NodeSource
+      if ! command -v node &> /dev/null || [ "$(node --version | cut -d. -f1 | tr -d v)" -lt 18 ]; then
+        curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+        apt-get install -y nodejs
+      fi
 
-      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
-      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/applications
-      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/32x32/apps
-      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps
-      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256@2/apps
-      cp "$DEB_DIR/usr/bin/kaggle-instance-manager" $SNAPCRAFT_PART_INSTALL/usr/bin/
-      cp "$DEB_DIR/usr/share/applications/kaggle-instance-manager.desktop" $SNAPCRAFT_PART_INSTALL/usr/share/applications/
-      cp "$DEB_DIR/usr/share/icons/hicolor/32x32/apps/kaggle-instance-manager.png" $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/32x32/apps/
-      cp "$DEB_DIR/usr/share/icons/hicolor/128x128/apps/kaggle-instance-manager.png" $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps/
-      cp "$DEB_DIR/usr/share/icons/hicolor/256x256@2/apps/kaggle-instance-manager.png" $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256@2/apps/
+      # Install Rust via rustup if not present
+      if ! command -v rustc &> /dev/null; then
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+        . "$HOME/.cargo/env"
+        # Ensure cargo is in PATH for subsequent build steps
+        echo "export PATH=\"\$HOME/.cargo/bin:\$PATH\"" >> "$HOME/.bashrc"
+      fi
+      # Source cargo env (works even if just installed above)
+      export PATH="$HOME/.cargo/bin:$PATH"
+
+      # Install Tauri system dependencies
+      apt-get install -y --no-install-recommends \
+        pkg-config libssl-dev \
+        libwebkit2gtk-4.1-dev libgtk-3-dev libjavascriptcoregtk-4.1-dev \
+        libsoup-3.0-dev libglib2.0-dev libgdk-pixbuf-2.0-dev \
+        libayatana-appindicator3-dev
+
+      # Install npm dependencies and build
+      cd "Kaggle Instance Manager"
+      npm ci
+
+      # Build the Tauri app (this compiles both frontend and Rust backend)
+      npm run tauri build
+
+      # ── Copy binary ───────────────────────────────────────────
+      mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/bin"
+      cp src-tauri/target/release/kaggle-instance-manager \
+         "$SNAPCRAFT_PART_INSTALL/usr/bin/"
+
+      # ── Copy desktop entry & icons from the built .deb ────────
+      DEB_FILE=$(ls src-tauri/target/release/bundle/deb/*.deb 2>/dev/null | head -1)
+      if [ -n "$DEB_FILE" ]; then
+        dpkg-deb -x "$DEB_FILE" "$SNAPCRAFT_PART_INSTALL"
+      else
+        # Fallback: copy from source if no .deb was built
+        mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/share/applications"
+        cp "$SNAPCRAFT_PROJECT_DIR/deb-extract/usr/share/applications/kaggle-instance-manager.desktop" \
+           "$SNAPCRAFT_PART_INSTALL/usr/share/applications/" 2>/dev/null || true
+        # Copy icons from the repo
+        for size in 32x32 128x128 256x256@2; do
+          mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/$size/apps"
+          cp "$SNAPCRAFT_PROJECT_DIR/deb-extract/usr/share/icons/hicolor/$size/apps/"*.png \
+             "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/$size/apps/" 2>/dev/null || true
+        done
+      fi
+
+      # ── Copy bundled resources (kaggle_tunnel Python package) ─
+      if [ -d "src-tauri/target/release/resources/kaggle_tunnel" ]; then
+        mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/lib/kaggle-instance-manager/resources"
+        cp -r src-tauri/target/release/resources/kaggle_tunnel \
+           "$SNAPCRAFT_PART_INSTALL/usr/lib/kaggle-instance-manager/resources/"
+      fi
     build-packages:
       - dpkg
+      - curl
+      - gcc
+      - g++
+      - make
+      - libc6-dev
     stage:
       - usr/bin/kaggle-instance-manager
       - usr/share/applications/kaggle-instance-manager.desktop
       - usr/share/icons/hicolor/*/apps/kaggle-instance-manager.png
+      - usr/lib/kaggle-instance-manager/resources/kaggle_tunnel/**
 
+  # ── Part 2: Bundle the kaggle_tunnel Python package ─────────────────
+  # This provides the module at $SNAP/kaggle_tunnel/ so PYTHONPATH works
+  python-module:
+    plugin: nil
+    source: .
+    override-build: |
+      set -eu
+      mkdir -p "$SNAPCRAFT_PART_INSTALL/kaggle_tunnel"
+      cp -r src/kaggle_tunnel/* "$SNAPCRAFT_PART_INSTALL/kaggle_tunnel/"
+    stage:
+      - kaggle_tunnel/**
+
+  # ── Part 3: System libraries and Python runtime ─────────────────────
   libs:
     plugin: nil
     stage-packages:
+      # Tauri WebView runtime
       - libwebkit2gtk-4.1-0
       - libgtk-3-0
       - libjavascriptcoregtk-4.1-0
@@ -60,3 +135,9 @@ parts:
       - libepoxy0
       - libgstreamer1.0-0
       - libgstreamer-plugins-base1.0-0
+      # Python runtime for the kaggle_tunnel proxy
+      - python3
+      - python3-aiohttp
+      # SSH tools
+      - sshpass
+      - openssh-client
