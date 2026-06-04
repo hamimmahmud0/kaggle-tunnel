@@ -43,5 +43,9 @@ prime/
 *.snap
 *.snapcraft
 
+# Debian Python package build artifacts
+deb-pkg/python3-kaggle-tunnel.deb
+deb-pkg/python3-kaggle-tunnel/usr/
+
 # Tauri gen schemas
 Kaggle Instance Manager/src-tauri/gen/

@@ -1,0 +1,13 @@
+Package: python3-kaggle-tunnel
+Version: 0.2.0
+Section: python
+Priority: optional
+Architecture: all
+Depends: python3, python3-aiohttp
+Maintainer: Hamim Mahmud <hamimmahmud0@gmail.com>
+Description: Kaggle Tunnel Python module
+ SSH proxy, tunnelbroker client, and notebook cell generator
+ for connecting Kaggle notebooks back to a local machine.
+ .
+ This package provides the kaggle_tunnel Python module with CLI
+ commands: kaggle-tunnel, kaggle-tunnel-run, and kmux.
