@@ -2,15 +2,17 @@ use std::fs;
 use std::path::Path;
 
 fn main() {
-    tauri_build::build();
-
     // Copy the kaggle_tunnel Python package into the Tauri resources directory
-    // so the app can find it via find_bundled_kaggle_tunnel() at runtime.
+    // BEFORE tauri_build::build() so Tauri's resource path validation succeeds.
     //
     // Source: ../../src/kaggle_tunnel/ (relative to this build.rs)
-    // Target: $OUT_DIR/../../resources/kaggle_tunnel/
-    //
-    // Tauri bundles the resources/ directory adjacent to the binary in .deb/snap.
+    // Target: resources/kaggle_tunnel/ (validated by tauri_build)
+    copy_kaggle_tunnel_resources();
+
+    tauri_build::build();
+}
+
+fn copy_kaggle_tunnel_resources() {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let src_dir = manifest_dir.join("../../src/kaggle_tunnel");
     let resources_dir = manifest_dir.join("resources/kaggle_tunnel");

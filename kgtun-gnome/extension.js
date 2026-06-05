@@ -2,67 +2,45 @@
  *
  * Provides a panel indicator that lists tunnelbroker-discovered
  * instances, supports one-click SSH, and shows credentials.
+ *
+ * ESM module format for GNOME 45+.
  */
 
-const { Gio, GLib, GObject, Soup } = imports.gi;
-const Main = imports.ui.main;
-const PanelMenu = imports.ui.panelMenu;
-const PopupMenu = imports.ui.popupMenu;
-const St = imports.gi.St;
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import St from 'gi://St';
+import Clutter from 'gi://Clutter';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const ExtensionUtils = imports.misc.extensionUtils;
-const Me = ExtensionUtils.getCurrentExtension();
+// ── HTTP helper (uses curl subprocess — avoids Soup 2/3 API issues) ──
 
-// ── GSettings ──────────────────────────────────────────────────────────
-
-let _settings = null;
-
-function getSettings() {
-    if (!_settings) {
-        const schemaId = 'org.gnome.shell.extensions.kgtun-manager';
-        const schema = Gio.SettingsSchemaSource.new_from_directory(
-            Me.dir.get_child('schemas').get_path(),
-            Gio.SettingsSchemaSource.get_default(),
-            false
-        );
-        _settings = new Gio.Settings({ settings_schema: schema.lookup(schemaId, null) });
-    }
-    return _settings;
-}
-
-// ── HTTP helper ────────────────────────────────────────────────────────
-
-async function fetchJson(url) {
-    const session = new Soup.Session({ user_agent: 'kgtun-gnome/0.1' });
-    const msg = Soup.Message.new('GET', url);
-
-    // Add auth header if configured
-    const token = getSettings().get_string('group-token');
+function fetchJson(url, token) {
+    const args = ['curl', '-s', '-H', 'User-Agent: kgtun-gnome/0.1'];
     if (token) {
-        msg.request_headers.append('Authorization', `Bearer ${token}`);
+        args.push('-H', `Authorization: Bearer ${token}`);
     }
+    args.push(url);
 
-    return new Promise((resolve, reject) => {
-        session.send_async(msg, null, (source, result) => {
-            try {
-                const bytes = source.send_finish(result);
-                const decoder = new TextDecoder();
-                const body = decoder.decode(bytes.get_data());
-                resolve(JSON.parse(body));
-            } catch (e) {
-                reject(e);
-            }
-        });
-    });
+    const launcher = new Gio.SubprocessLauncher(
+        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+    );
+    const proc = launcher.spawnv(args);
+    const [, stdout] = proc.communicate(null);
+    const data = stdout ? new TextDecoder().decode(stdout) : '[]';
+    return JSON.parse(data);
 }
 
-async function fetchPeers() {
-    const baseUrl = getSettings().get_string('tunnelbroker-url');
-    const group = getSettings().get_string('tunnelbroker-group');
+async function fetchPeers(settings) {
+    const baseUrl = settings.get_string('tunnelbroker-url');
+    const group = settings.get_string('tunnelbroker-group');
+    const token = settings.get_string('group-token');
     if (!baseUrl) return [];
-
     const url = `${baseUrl.replace(/\/+$/, '')}/v1/groups/${group}/peers`;
-    const data = await fetchJson(url);
+    const data = await fetchJson(url, token);
     return data.peers || data || [];
 }
 
@@ -70,8 +48,9 @@ async function fetchPeers() {
 
 const KgtunIndicator = GObject.registerClass(
     class KgtunIndicator extends PanelMenu.Button {
-        _init() {
+        _init(settings) {
             super._init(0.0, 'Kaggle Instance Manager', false);
+            this._settings = settings;
 
             // Panel icon
             this._icon = new St.Icon({
@@ -88,16 +67,15 @@ const KgtunIndicator = GObject.registerClass(
             });
             this.add_child(this._label);
 
-            // Timer
             this._timer = null;
             this._peers = [];
         }
 
         enable() {
             this._refresh();
-            const interval = getSettings().get_int('poll-interval-seconds') * 1000;
+            const interval = this._settings.get_int('poll-interval-seconds') * 1000;
             this._timer = GLib.timeout_add_seconds(
-                GLib.Priority.DEFAULT,
+                GLib.PRIORITY_DEFAULT,
                 interval,
                 () => { this._refresh(); return GLib.SOURCE_CONTINUE; }
             );
@@ -113,11 +91,9 @@ const KgtunIndicator = GObject.registerClass(
 
         async _refresh() {
             try {
-                const peers = await fetchPeers();
+                const peers = await fetchPeers(this._settings);
                 this._peers = peers;
                 this._rebuildMenu(peers);
-
-                // Update label
                 const count = peers.length;
                 this._label.set_text(count > 0 ? `${count}` : '');
                 this._icon.set_icon_name(
@@ -125,7 +101,7 @@ const KgtunIndicator = GObject.registerClass(
                 );
             } catch (e) {
                 this._label.set_text('!');
-                log(`[kgtun] fetch error: ${e}`);
+                console.error(`[kgtun] fetch error: ${e}`);
             }
         }
 
@@ -137,7 +113,6 @@ const KgtunIndicator = GObject.registerClass(
                 item.setSensitive(false);
                 this.menu.addMenuItem(item);
             } else {
-                // Header
                 const header = new PopupMenu.PopupMenuItem(
                     `${peers.length} instance(s) — click to connect`,
                     { reactive: false }
@@ -153,10 +128,8 @@ const KgtunIndicator = GObject.registerClass(
                     const sshUser = peer.metadata?.ssh_user || 'notebook';
                     const sshPort = peer.metadata?.ssh_port || 2222;
 
-                    // Instance sub-menu
                     const subMenu = new PopupMenu.PopupSubMenuMenuItem(name);
 
-                    // Status row
                     const statusItem = new PopupMenu.PopupMenuItem(
                         `Host: ${hostname}  |  Port: ${sshPort}`,
                         { reactive: false }
@@ -164,8 +137,9 @@ const KgtunIndicator = GObject.registerClass(
                     statusItem.setSensitive(false);
                     subMenu.menu.addMenuItem(statusItem);
 
-                    // SSH connect
                     subMenu.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+                    // SSH connect
                     const sshItem = new PopupMenu.PopupMenuItem('Connect SSH');
                     sshItem.connect('activate', () => {
                         this._launchSsh(endpoint || hostname, sshUser, sshPort);
@@ -180,7 +154,7 @@ const KgtunIndicator = GObject.registerClass(
                     });
                     subMenu.menu.addMenuItem(copyItem);
 
-                    // Copy endpoint
+                    // Copy tunnel URL
                     if (endpoint) {
                         const epItem = new PopupMenu.PopupMenuItem('Copy tunnel URL');
                         epItem.connect('activate', () => {
@@ -195,8 +169,6 @@ const KgtunIndicator = GObject.registerClass(
                         this._generateAndCopyCell(peer);
                     });
                     subMenu.menu.addMenuItem(cellItem);
-
-                    this.menu.addMenuItem(subMenu);
                 }
             }
 
@@ -223,7 +195,7 @@ const KgtunIndicator = GObject.registerClass(
                     `gnome-terminal -- bash -c '${sshCmd.replace(/'/g, "'\\''")}; exec bash'`
                 );
             } catch (e) {
-                log(`[kgtun] Failed to launch SSH: ${e}`);
+                console.error(`[kgtun] Failed to launch SSH: ${e}`);
             }
         }
 
@@ -232,11 +204,7 @@ const KgtunIndicator = GObject.registerClass(
             clipboard.set_text(St.ClipboardType.CLIPBOARD, text);
         }
 
-        // Try to find the bundled kaggle_tunnel Python package so we can
-        // set PYTHONPATH when running the cell generator subprocess.
-        // Checks KAGGLE_TUNNEL_PYTHONPATH env var first, then known paths.
         _findKaggleTunnelPath() {
-            // 1. Environment variable (used by Snap / manual configs)
             const envPath = GLib.getenv('KAGGLE_TUNNEL_PYTHONPATH');
             if (envPath) {
                 const testPath = GLib.build_filenamev([envPath, 'kaggle_tunnel', 'proxy.py']);
@@ -244,8 +212,6 @@ const KgtunIndicator = GObject.registerClass(
                     return envPath;
                 }
             }
-
-            // 2. Common .deb installation paths
             const candidates = [
                 '/usr/lib/kaggle-instance-manager/resources',
                 '/usr/lib/x86_64-linux-gnu/kaggle-instance-manager/resources',
@@ -257,15 +223,14 @@ const KgtunIndicator = GObject.registerClass(
                     return candidate;
                 }
             }
-
             return null;
         }
 
         _generateAndCopyCell(peer) {
             const name = peer.metadata?.instance_name || peer.peer;
-            const baseUrl = getSettings().get_string('tunnelbroker-url');
-            const group = getSettings().get_string('tunnelbroker-group');
-            const token = getSettings().get_string('group-token');
+            const baseUrl = this._settings.get_string('tunnelbroker-url');
+            const group = this._settings.get_string('tunnelbroker-group');
+            const token = this._settings.get_string('group-token');
             if (!baseUrl) {
                 Main.notify('Kaggle Manager', 'Configure tunnelbroker URL in Settings first');
                 return;
@@ -282,7 +247,6 @@ c = generate_tunnelbroker_cell_code(
 print(c)
                 `.trim();
 
-                // Set PYTHONPATH so the bundled kaggle_tunnel package is found
                 const flags = Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE;
                 const launcher = new Gio.SubprocessLauncher(flags);
                 const bundledPath = this._findKaggleTunnelPath();
@@ -304,50 +268,48 @@ print(c)
                     Main.notify('Kaggle Manager', 'Failed to generate cell code');
                 }
             } catch (e) {
-                log(`[kgtun] generate cell error: ${e}`);
+                console.error(`[kgtun] generate cell error: ${e}`);
                 Main.notify('Kaggle Manager', 'Error generating cell code');
             }
         }
 
         _openManagerApp() {
-            const appPath = getSettings().get_string('manager-app-path');
+            const appPath = this._settings.get_string('manager-app-path');
             if (appPath) {
                 try {
                     GLib.spawn_command_line_async(appPath);
                 } catch (e) {
-                    log(`[kgtun] Failed to launch manager app: ${e}`);
+                    console.error(`[kgtun] Failed to launch manager app: ${e}`);
                 }
             }
         }
 
         _openSettings() {
-            // Open the extension preferences in GNOME Settings
-            // This requires the extension to have a prefs.js
             try {
                 GLib.spawn_command_line_async(
                     'gnome-extensions prefs kgtun-manager@hamimmahmud0'
                 );
             } catch (e) {
-                log(`[kgtun] Failed to open settings: ${e}`);
+                console.error(`[kgtun] Failed to open settings: ${e}`);
             }
         }
     }
 );
 
-// ── Extension entry points ─────────────────────────────────────────────
+// ── Extension entry point (ESM class extending Extension) ──────────────
 
-let _indicator = null;
+export default class KgtunExtension extends Extension {
+    enable() {
+        this._indicator = new KgtunIndicator(this.getSettings());
+        Main.panel.addToStatusArea('kgtun-indicator', this._indicator, 1, 'right');
+        this._indicator.enable();
+    }
 
-function enable() {
-    _indicator = new KgtunIndicator();
-    Main.panel.addToStatusArea('kgtun-indicator', _indicator, 1, 'right');
-    _indicator.enable();
-}
-
-function disable() {
-    if (_indicator) {
-        _indicator.disable();
-        _indicator.destroy();
-        _indicator = null;
+    disable() {
+        if (this._indicator) {
+            this._indicator.disable();
+            this._indicator.destroy();
+            this._indicator = null;
+        }
     }
 }

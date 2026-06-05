@@ -62,8 +62,8 @@ parts:
       cd "Kaggle Instance Manager"
       npm ci
 
-      # Build the Tauri app (this compiles both frontend and Rust backend)
-      npm run tauri build
+      # Build the Tauri app (deb only — AppImage/rpm need xdg-open)
+      npm run tauri build -- --bundles deb
 
       # ── Copy binary ───────────────────────────────────────────
       mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/bin"
