@@ -138,3 +138,16 @@ If you see `REMOTE HOST IDENTIFICATION HAS CHANGED!`, remove the stale entry:
 
 ```bash
 ssh-keygen -R "[127.0.0.1]:10022"
+```
+
+## Donations
+
+If you find this project useful, consider supporting it:
+
+| Currency | Address |
+|----------|---------|
+| **BTC**  | `bc1q6r83agw2e3fh0gja6k8ukd8rv7aq550ze5ankn` |
+| **ETH / USDT / BNB** | `0x9162379EA7f99552CF8eDD3FC7B3Be1db6cb4f56` |
+| **SOL**  | `AjM3ann6iGS3q3EjD5Uzu1aNdaZ4EbcsesyCxmgCvZ3D` |
+
+[Full donation page](DONATIONS.md)

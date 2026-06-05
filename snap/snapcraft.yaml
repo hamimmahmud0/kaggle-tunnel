@@ -2,9 +2,16 @@ name: kaggle-instance-manager
 base: core22
 version: "0.2.0"
 summary: Kaggle Instance Manager
+title: Kaggle Instance Manager
 description: |
   Multi-instance tunnel manager with tunnelbroker discovery.
   Manage SSH connections to Kaggle notebooks via Cloudflare tunnels.
+license: MIT
+contact: hamimmahmud0@gmail.com
+donation: https://github.com/hamimmahmud0/kaggle-tunnel/blob/main/DONATIONS.md
+source-code: https://github.com/hamimmahmud0/kaggle-tunnel
+issues: https://github.com/hamimmahmud0/kaggle-tunnel/issues
+website: https://github.com/hamimmahmud0/kaggle-tunnel
 
 grade: stable
 confinement: classic
