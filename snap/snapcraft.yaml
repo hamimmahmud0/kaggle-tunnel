@@ -12,6 +12,7 @@ donation: https://github.com/hamimmahmud0/kaggle-tunnel/blob/main/DONATIONS.md
 source-code: https://github.com/hamimmahmud0/kaggle-tunnel
 issues: https://github.com/hamimmahmud0/kaggle-tunnel/issues
 website: https://github.com/hamimmahmud0/kaggle-tunnel
+icon: KIM-icon.png
 
 grade: stable
 confinement: classic
@@ -22,9 +23,10 @@ apps:
     desktop: usr/share/applications/kaggle-instance-manager.desktop
     environment:
       DISABLE_WAYLAND: "1"
-      KAGGLE_TUNNEL_PYTHON: "$SNAP/usr/bin/python3"
-      # Tell proxy_manager.rs where the bundled kaggle_tunnel Python package lives
-      KAGGLE_TUNNEL_PYTHONPATH: "$SNAP/kaggle_tunnel"
+      # Use host Python (classic snap can access /usr/bin)
+      KAGGLE_TUNNEL_PYTHON: /usr/bin/python3
+      # Parent of kaggle_tunnel/ — find_bundled_kaggle_tunnel appends "kaggle_tunnel/proxy.py"
+      KAGGLE_TUNNEL_PYTHONPATH: "$SNAP"
 
 # ── Parts ──────────────────────────────────────────────────────────────
 #
@@ -82,17 +84,24 @@ parts:
       if [ -n "$DEB_FILE" ]; then
         dpkg-deb -x "$DEB_FILE" "$SNAPCRAFT_PART_INSTALL"
       else
-        # Fallback: copy from source if no .deb was built
+        # Fallback: copy from source
         mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/share/applications"
         cp "$SNAPCRAFT_PROJECT_DIR/deb-extract/usr/share/applications/kaggle-instance-manager.desktop" \
            "$SNAPCRAFT_PART_INSTALL/usr/share/applications/" 2>/dev/null || true
-        # Copy icons from the repo
-        for size in 32x32 128x128 256x256@2; do
-          mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/$size/apps"
-          cp "$SNAPCRAFT_PROJECT_DIR/deb-extract/usr/share/icons/hicolor/$size/apps/"*.png \
-             "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/$size/apps/" 2>/dev/null || true
-        done
       fi
+
+      # ── Copy icons (not always included in the extracted .deb) ─
+      for size in 32x32 128x128 256x256@2; do
+        mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/$size/apps"
+        # Try deb-extract first, then repo icons
+        if [ -f "$SNAPCRAFT_PROJECT_DIR/deb-extract/usr/share/icons/hicolor/$size/apps/kaggle-instance-manager.png" ]; then
+          cp "$SNAPCRAFT_PROJECT_DIR/deb-extract/usr/share/icons/hicolor/$size/apps/kaggle-instance-manager.png" \
+             "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/$size/apps/"
+        elif [ -f "$PROJECT/src-tauri/icons/${size%x*}.png" ]; then
+          cp "$PROJECT/src-tauri/icons/${size%x*}.png" \
+             "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/$size/apps/kaggle-instance-manager.png"
+        fi
+      done
 
       # ── Copy bundled resources (kaggle_tunnel Python package) ─
       if [ -d "src-tauri/target/release/resources/kaggle_tunnel" ]; then
@@ -144,7 +153,9 @@ parts:
       - libgstreamer-plugins-base1.0-0
       # Python runtime for the kaggle_tunnel proxy
       - python3
+      - python3-minimal
       - python3-aiohttp
+      - libpython3-stdlib
       # SSH tools
       - sshpass
       - openssh-client
