@@ -213,7 +213,7 @@ fn remove_instance(peer_id: String, state: State<'_, AppState>) -> Result<(), St
 fn build_ssh_command(
     peer_id: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+    ) -> Result<String, String> {
     let config = {
         let manager = state.manager.lock().map_err(|e| e.to_string())?;
         manager.get_config()?
