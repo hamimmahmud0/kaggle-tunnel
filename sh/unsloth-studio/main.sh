@@ -36,8 +36,11 @@ echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudf
 sudo apt-get update && sudo apt-get install cloudflared
 
 # 4. Run tunnel
+## Public Tunnel
+# tmux new-session -d -s tunnel "cloudflared tunnel --url http://localhost:8888"
 
-tmux new-session -d -s tunnel "cloudflared tunnel --url http://localhost:8888"
+## Private Tunnel
+tmux new-session -d -s tunnel "sudo cloudflared service install eyJhIjoiNjFkN2Y2ODM3Nzg4N2YxYzZjMWU1YjNiY2YxODNlZjAiLCJ0IjoiYWMzMjYyODQtNzMzMC00YjE1LTkyMjYtNWUwNDk2NjM1NGFhIiwicyI6Ik1qRmtaREZsWVdRdFlXSmxNeTAwWWpoaUxXSmhOell0TldRM05USTBNRFl3T1RoaiJ9"
 
 # 5. Launch the Studio server
 tmux new-session -d -s unsloth_server "export MPLBACKEND=Agg && unsloth studio -H 0.0.0.0 -p 8888"
