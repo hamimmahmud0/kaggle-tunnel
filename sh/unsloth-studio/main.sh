@@ -15,12 +15,12 @@ source unsloth_env/bin/activate
 uv pip install unsloth --torch-backend=auto
 
 # 1. Clone the Unsloth repository
-#git clone https://github.com/unslothai/unsloth.git
-#cd unsloth
+git clone https://github.com/unslothai/unsloth.git
+cd unsloth
 
 # 2. Run the local installer non-interactively
 # (This builds the UI backend and places environment markers where the CLI expects them)
-#./install.sh --local
+./install.sh --local
 
 
 # 3. Setup cloudflared tunnel
